@@ -1,0 +1,13 @@
+node_modules
+src/node_modules
+src/dist
+.pytest_cache
+__pycache__
+*.pyc
+.env
+.git
+.kiro
+tests
+env.corrected
+Dockerfile.backend
+Dockerfile.frontend
