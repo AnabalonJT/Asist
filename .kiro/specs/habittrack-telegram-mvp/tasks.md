@@ -64,7 +64,7 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Handle missing formulas with default MET value of 5.0
     - _Requirements: 5.1, 5.2, 5.3_
 
-  - [ ]* 3.2 Write property test for calorie calculation completeness
+  - [x]* 3.2 Write property test for calorie calculation completeness
     - **Property 2: Calorie Calculation Completeness**
     - **Validates: Requirements 5.1, 5.2, 5.3**
     - Use Hypothesis to generate test cases with activity types, durations, and optional distances
@@ -72,7 +72,7 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Test that calories > 0 for all valid inputs
     - Verify correct formula selection based on activity type
 
-  - [ ]* 3.3 Write unit tests for CalorieService
+  - [x]* 3.3 Write unit tests for CalorieService
     - Test MET-based calculation with known inputs
     - Test distance-based calculation when distance provided
     - Test fallback to default MET when formula not found
@@ -89,7 +89,7 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Handle timezone considerations (use UTC for MVP)
     - _Requirements: 11.1, 11.2, 11.3, 11.5_
 
-  - [ ]* 3.5 Write property test for streak calculation correctness
+  - [x]* 3.5 Write property test for streak calculation correctness
     - **Property 6: Streak Calculation Correctness**
     - **Validates: Requirements 11.1, 11.2, 11.3, 11.5**
     - Use Hypothesis to generate random activity sequences with various date patterns
@@ -98,7 +98,7 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Test activities with gaps correctly reset streak
     - Test activities at day boundaries
 
-  - [ ]* 3.6 Write unit tests for streak calculation
+  - [x]* 3.6 Write unit tests for streak calculation
     - Test consecutive days (expected streak > 1)
     - Test with gap in middle (streak should be from most recent consecutive days)
     - Test empty activities (streak = 0)
@@ -115,7 +115,7 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Add data isolation checks to ensure users only access their own activities
     - _Requirements: 3.1, 3.2, 3.3, 4.3, 6.4, 14.4_
 
-  - [ ]* 3.8 Write property test for user data isolation
+  - [x]* 3.8 Write property test for user data isolation
     - **Property 7: User Data Isolation**
     - **Validates: Requirements 14.4**
     - Use Hypothesis to generate two distinct user IDs
@@ -146,14 +146,14 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Mark token as used after successful validation
     - _Requirements: 1.5, 2.2, 2.3, 2.4_
 
-  - [ ]* 5.3 Write property test for linking token uniqueness
+  - [x]* 5.3 Write property test for linking token uniqueness
     - **Property 1: Linking Token Uniqueness**
     - **Validates: Requirements 1.5**
     - Use Hypothesis to generate multiple user account creations
     - Verify all generated tokens are unique
     - Test with 100-1000 token generations
 
-  - [ ]* 5.4 Write unit tests for AuthService
+  - [x]* 5.4 Write unit tests for AuthService
     - Test successful registration creates user and returns valid JWT
     - Test duplicate email registration fails
     - Test login with correct credentials succeeds
@@ -180,7 +180,7 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Return validation result with error message if invalid
     - _Requirements: 7.3, 7.4_
 
-  - [ ]* 6.2 Write property test for schedule format validation
+  - [x]* 6.2 Write property test for schedule format validation
     - **Property 3: Schedule Format Validation**
     - **Validates: Requirements 7.3**
     - Use Hypothesis to generate random strings
@@ -206,14 +206,14 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Update last_sent_at to prevent duplicate sends
     - _Requirements: 8.3_
 
-  - [ ]* 6.5 Write property test for reminder completion matching
+  - [x]* 6.5 Write property test for reminder completion matching
     - **Property 4: Reminder Completion Matching**
     - **Validates: Requirements 8.3**
     - Use Hypothesis to generate reminders and activities
     - Verify matching activity types correctly mark reminders as completed
     - Verify non-matching activities don't affect reminders
 
-  - [ ]* 6.6 Write unit tests for ReminderService
+  - [x]* 6.6 Write unit tests for ReminderService
     - Test creating reminder with valid schedule
     - Test creating reminder with invalid schedule fails
     - Test updating reminder active status (pause/resume)
@@ -252,28 +252,28 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Handle optional fields (duration, distance, timestamp)
     - _Requirements: 17.1, 17.2, 17.4_
 
-  - [ ]* 8.4 Write property test for LLM response parsing
+  - [x]* 8.4 Write property test for LLM response parsing
     - **Property 8: LLM Response Parsing**
     - **Validates: Requirements 17.1**
     - Use Hypothesis to generate valid LLM response JSON structures
     - Verify parser successfully extracts all present fields
     - Test with various field combinations (with/without optional fields)
 
-  - [ ]* 8.5 Write property test for activity data validation
+  - [x]* 8.5 Write property test for activity data validation
     - **Property 9: Activity Data Validation**
     - **Validates: Requirements 17.2**
     - Use Hypothesis to generate activity data with missing fields
     - Verify validator rejects data missing required fields (activity_type)
     - Verify validator accepts data with all required fields
 
-  - [ ]* 8.6 Write property test for activity data formatting
+  - [x]* 8.6 Write property test for activity data formatting
     - **Property 10: Activity Data Formatting**
     - **Validates: Requirements 17.4**
     - Use Hypothesis to generate valid ActivityData structures
     - Verify formatter produces JSON conforming to expected schema
     - Verify all fields are correctly serialized
 
-  - [ ]* 8.7 Write property test for round-trip serialization
+  - [x]* 8.7 Write property test for round-trip serialization
     - **Property 11: Round-Trip Serialization**
     - **Validates: Requirements 17.5**
     - Use Hypothesis to generate valid ActivityData structures
@@ -304,7 +304,7 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Support actions: pause, resume, modify, delete
     - _Requirements: 9.1, 9.2, 9.4, 9.5_
 
-  - [ ]* 8.11 Write unit tests for LLM service
+  - [x]* 8.11 Write unit tests for LLM service
     - Mock OpenRouter API responses
     - Test activity interpretation with valid response
     - Test activity interpretation with malformed response (fallback)
@@ -380,7 +380,7 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Send confirmation message
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-  - [ ]* 10.8 Write integration tests for Telegram webhook
+  - [x]* 10.8 Write integration tests for Telegram webhook
     - Mock LLM service responses
     - Mock Telegram Bot API
     - Test /start command with valid token links account
@@ -429,14 +429,14 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Return WeeklySummaryData dataclass with all statistics
     - _Requirements: 10.1_
 
-  - [ ]* 12.5 Write property test for weekly activity compilation
+  - [x]* 12.5 Write property test for weekly activity compilation
     - **Property 5: Weekly Activity Compilation**
     - **Validates: Requirements 10.1**
     - Use Hypothesis to generate activities within week period
     - Verify compiled data includes all activities in date range
     - Verify counts and totals are correctly calculated
 
-  - [ ]* 12.6 Write unit tests for scheduled jobs
+  - [x]* 12.6 Write unit tests for scheduled jobs
     - Mock ReminderService and TelegramService
     - Test reminder delivery job processes due reminders
     - Test duplicate reminder prevention within same period
@@ -515,7 +515,7 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Add OpenAPI documentation tags for route organization
     - _Requirements: All API routes_
 
-  - [ ]* 14.7 Write integration tests for API routes
+  - [x]* 14.7 Write integration tests for API routes
     - Use FastAPI TestClient for route testing
     - Test user registration and login flows
     - Test protected routes require valid JWT
@@ -644,7 +644,7 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Optionally integrate UI library (Material-UI, Chakra UI, or Tailwind CSS)
     - _Requirements: 6.1, 6.2, 6.3_
 
-  - [ ]* 16.13 Write component tests for critical UI flows
+  - [x]* 16.13 Write component tests for critical UI flows
     - Use React Testing Library for component tests
     - Test registration form submission
     - Test login form submission
@@ -711,7 +711,7 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
   - Ensure deployment configuration is complete. Test deployment to staging environment. Ask the user if questions arise.
 
 - [x] 20. End-to-end testing and final integration
-  - [ ]* 20.1 Run comprehensive end-to-end test: new user onboarding
+  - [x]* 20.1 Run comprehensive end-to-end test: new user onboarding
     - Register new user on web dashboard
     - Verify linking token and bot link displayed
     - Click bot link (or manually send /start command with token)
@@ -719,7 +719,7 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Verify Telegram linked status shows in web dashboard
     - _Requirements: 1.1, 1.2, 1.5, 1.6, 2.1, 2.2, 2.4_
 
-  - [ ]* 20.2 Run comprehensive end-to-end test: activity logging journey
+  - [x]* 20.2 Run comprehensive end-to-end test: activity logging journey
     - Send activity message in Telegram: "Ran 5km this morning"
     - Verify confirmation message received in Telegram with calories
     - Log into web dashboard
@@ -728,14 +728,14 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Verify streak updated correctly
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 5.1, 5.4, 6.1, 6.2, 6.3, 11.4_
 
-  - [ ]* 20.3 Run comprehensive end-to-end test: correction flow
+  - [x]* 20.3 Run comprehensive end-to-end test: correction flow
     - Log initial activity in Telegram
     - Send correction message: "Actually it was 6km not 5km"
     - Verify updated confirmation received
     - Check web dashboard shows corrected activity
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 6.3_
 
-  - [ ]* 20.4 Run comprehensive end-to-end test: reminder cycle
+  - [x]* 20.4 Run comprehensive end-to-end test: reminder cycle
     - Create reminder via web API (POST /api/reminders)
     - Wait for scheduled time or trigger scheduler manually
     - Verify reminder message received in Telegram
@@ -743,14 +743,14 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
     - Verify reminder marked as completed
     - _Requirements: 7.1, 7.2, 8.1, 8.2, 8.3_
 
-  - [ ]* 20.5 Run comprehensive end-to-end test: weekly summary
+  - [x]* 20.5 Run comprehensive end-to-end test: weekly summary
     - Create multiple activities throughout the week (seed data or manual)
     - Trigger weekly summary job manually or wait for Sunday 20:00
     - Verify summary message received in Telegram with statistics and dashboard link
     - Click dashboard link and verify data matches summary
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
 
-  - [ ]* 20.6 Verify error handling and edge cases
+  - [x]* 20.6 Verify error handling and edge cases
     - Test LLM timeout/failure (mock or temporary API issue)
     - Test database connection failure
     - Test Telegram bot blocked by user
