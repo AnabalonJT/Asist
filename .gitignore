@@ -1,4 +1,4 @@
-# Python
+# ── Python ─────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -20,36 +20,47 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
+# ── Virtual Environment ────────────────────────────────────────────────────────
 venv/
 env/
 ENV/
-.venv
+.venv/
 
-# Environment variables
+# ── Environment variables (SECRETS - never commit) ─────────────────────────────
 .env
 .env.local
+.env.production
+.env.staging
 
-# IDE
+# ── Node / Frontend ───────────────────────────────────────────────────────────
+node_modules/
+src/node_modules/
+src/dist/
+
+# ── IDE ────────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# Testing
+# ── Testing ────────────────────────────────────────────────────────────────────
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
 
-# Database
+# ── Database ──────────────────────────────────────────────────────────────────
 *.db
 *.sqlite3
 
-# Logs
+# ── Logs ──────────────────────────────────────────────────────────────────────
 *.log
 
-# OS
+# ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+Desktop.ini
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+postgres_data/
