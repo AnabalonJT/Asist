@@ -15,10 +15,12 @@ logger = logging.getLogger(__name__)
 class ActivityData:
     """Structured activity data extracted from a message."""
     activity_type: str
-    category: str = "sport"  # "sport", "strength", "habit"
+    category: str = "sport"  # "sport", "strength", "habit", "life"
     duration_minutes: int | None = None
     distance_km: float | None = None
     detail: str | None = None  # e.g. "4x100kg press banca"
+    exercise_name: str | None = None  # e.g. "Press Banca" (for strength)
+    sets: list | None = None  # [{"reps": 10, "weight_kg": 50}, ...]
     confidence: float = 0.0
 
 
@@ -29,6 +31,18 @@ class ReminderData:
     message: str | None = None
     schedule: str | None = None  # HH:MM format
     frequency: str = "daily"
+    schedule_days: str | None = None  # "0,2,4" for Mon,Wed,Fri
+    schedule_date: str | None = None  # "2026-07-06" for one-time
+
+
+@dataclass
+class GoalData:
+    """Structured goal data extracted from a message."""
+    action: str  # "create", "list", "delete"
+    activity_type: str | None = None
+    target_count: int = 1
+    period: str = "weekly"  # "daily", "weekly", "monthly"
+    description: str | None = None
 
 
 SYSTEM_PROMPT = """Eres un asistente de seguimiento de hábitos y deportes. Tu trabajo es interpretar mensajes del usuario y clasificarlos.
@@ -48,6 +62,8 @@ Responde SIEMPRE en formato JSON con esta estructura:
     "duration_minutes": number o null,
     "distance_km": number o null,
     "detail": "string o null (detalle extra: peso, series, reps, libro, etc)",
+    "exercise_name": "string o null (nombre del ejercicio para fuerza: Press Banca, Sentadillas, etc)",
+    "sets": [{"reps": number, "weight_kg": number}] o null (series para fuerza),
     "confidence": 0.0-1.0
   }
 }
@@ -55,7 +71,8 @@ Responde SIEMPRE en formato JSON con esta estructura:
 Categorías:
 - "sport": actividades cardiovasculares (correr, nadar, bici, caminar, hiking, basketball, etc)
 - "strength": ejercicios de fuerza/pesas (press banca, sentadillas, peso muerto, dominadas, gym con pesas, crossfit)
-- "habit": hábitos no-deportivos (meditar, leer, estudiar, stretching, journaling)
+- "habit": hábitos y actividades no-deportivas (meditar, leer, estudiar, stretching, journaling)
+- "life": registros de vida cotidiana (comer, ir al baño, ver película, cocinar, limpiar, dormir, etc)
 
 ## Si intent="reminder" (el usuario quiere crear/ver/gestionar recordatorios):
 {
@@ -64,16 +81,24 @@ Categorías:
     "action": "create" | "list" | "delete" | "pause",
     "message": "string (qué recordar, ej: 'meditar')",
     "schedule": "HH:MM (hora del recordatorio)" o null,
-    "frequency": "daily" | "weekly" | "weekdays"
+    "frequency": "daily" | "weekdays" | "weekends" | "specific_days" | "once" | "biweekly",
+    "schedule_days": "string CSV de días (0=lun,1=mar,2=mie,3=jue,4=vie,5=sab,6=dom)" o null,
+    "schedule_date": "YYYY-MM-DD" o null (para recordatorios únicos)
   }
 }
 
 Ejemplos de recordatorios:
 - "recuérdame meditar a las 8am" → create, message="meditar", schedule="08:00", frequency="daily"
-- "ponme un recordatorio de correr a las 7:30" → create, message="correr", schedule="07:30"
-- "mis recordatorios" o "qué recordatorios tengo" → list
+- "recordatorio de correr los lunes y miércoles a las 7:30" → create, message="correr", schedule="07:30", frequency="specific_days", schedule_days="0,2"
+- "el lunes 6 de julio a las 8am ir al Dr" → create, message="ir al Dr", schedule="08:00", frequency="once", schedule_date="2026-07-06"
+- "recordatorio de gym solo fines de semana a las 10" → create, message="gym", schedule="10:00", frequency="weekends"
+- "recuérdame estudiar de lunes a viernes a las 20:00" → create, message="estudiar", schedule="20:00", frequency="weekdays"
+- "recuerdame que el domingo 5 de julio a las 11:20 tengo que ver horarios de banco" → create, message="ver horarios de banco", schedule="11:20", frequency="once", schedule_date="2026-07-05"
+- "el martes a las 3pm tengo dentista" → create, message="dentista", schedule="15:00", frequency="once"
+- "mis recordatorios" → list
 - "borra el recordatorio de meditar" → delete, message="meditar"
-- "pausa recordatorios" → pause
+
+IMPORTANTE: Si el usuario dice "recuérdame", "recuerdame", "no olvides", "tengo que", "acuérdame" + una fecha/hora, SIEMPRE es intent="reminder" aunque tenga errores de tipeo.
 
 ## Si intent="chat" (conversación general, preguntas, saludos):
 {
@@ -94,17 +119,45 @@ Ejemplos de timezone:
 - "estoy en México" → timezone="America/Mexico_City"
 - "zona horaria España" → timezone="Europe/Madrid"
 - "cambiar timezone a America/Bogota" → timezone="America/Bogota"
-  "data": {}
+
+## Si intent="goal" (el usuario quiere crear/ver/eliminar metas):
+{
+  "intent": "goal",
+  "data": {
+    "action": "create" | "list" | "delete",
+    "activity_type": "string (tipo de actividad de la meta)",
+    "target_count": number (cuántas veces por periodo),
+    "period": "daily" | "weekly" | "monthly",
+    "description": "string (descripción legible de la meta)"
+  }
 }
 
+Ejemplos de metas:
+- "quiero correr 3 veces por semana" → create, activity_type="running", target_count=3, period="weekly", description="Correr 3 veces por semana"
+- "meta: meditar todos los días" → create, activity_type="meditation", target_count=1, period="daily", description="Meditar todos los días"
+- "mi meta es ir al gym 4 veces por semana" → create, activity_type="gym", target_count=4, period="weekly"
+- "mis metas" → list
+- "eliminar meta de correr" → delete, activity_type="running"
+
 Reglas importantes:
-- "Levanté 100kg en press banca" → activity, category="strength", detail="100kg press banca"
-- "Hice 4 series de sentadillas con 80kg" → activity, category="strength", detail="4x80kg sentadillas"
+- "Levanté 100kg en press banca" → activity, category="strength", exercise_name="Press Banca", sets=[{"reps":1,"weight_kg":100}]
+- "Hice 4 series de sentadillas con 80kg" → activity, category="strength", exercise_name="Sentadillas", sets=[{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80}]
+- "10x4 con 50kg pressbanca" = 4 series de 10 reps → exercise_name="Press Banca", sets=[{"reps":10,"weight_kg":50},{"reps":10,"weight_kg":50},{"reps":10,"weight_kg":50},{"reps":10,"weight_kg":50}]
+- "Press banca 10 reps 40kg, 10 reps 50kg, 8x60kg" → sets=[{"reps":10,"weight_kg":40},{"reps":10,"weight_kg":50},{"reps":8,"weight_kg":60}]
+- Para strength: activity_type siempre "weights", exercise_name = nombre real del ejercicio
 - "Corrí 5km" → activity, category="sport"
 - "Leí 30 min" → activity, category="habit"
 - "Medité 10 minutos" → activity, category="habit"
+- "Comí almuerzo" → activity, category="life", activity_type="comer", detail="almuerzo"
+- "Fui al baño" o "hice caca" → activity, category="life", activity_type="baño"
+- "Vi una película" → activity, category="life", activity_type="película", detail="película"
+- "Cociné" → activity, category="life", activity_type="cocinar"
+- "Dormí 7 horas" → activity, category="life", activity_type="dormir", duration_minutes=420
+- "Tomé agua" → activity, category="life", activity_type="agua"
+- CUALQUIER cosa que el usuario diga que HIZO es una actividad válida. Si dice que hizo algo, registrarlo.
+- Si no tiene duración obvia, duration_minutes puede ser null
 - Series/reps sin duración: estima (4 series ≈ 8 min, sesión completa ≈ 45 min)
-- "hola", "cómo va", preguntas → chat
+- "hola", "cómo va", preguntas que NO describen algo que hicieron → chat
 - Responde SOLO JSON, sin texto adicional"""
 
 
@@ -145,6 +198,8 @@ def parse_activity(data: dict) -> ActivityData | None:
         duration_minutes=activity.get("duration_minutes"),
         distance_km=activity.get("distance_km"),
         detail=activity.get("detail"),
+        exercise_name=activity.get("exercise_name"),
+        sets=activity.get("sets"),
         confidence=confidence,
     )
 
@@ -161,6 +216,24 @@ def parse_reminder(data: dict) -> ReminderData | None:
         message=reminder.get("message"),
         schedule=reminder.get("schedule"),
         frequency=reminder.get("frequency", "daily"),
+        schedule_days=reminder.get("schedule_days"),
+        schedule_date=reminder.get("schedule_date"),
+    )
+
+
+def parse_goal(data: dict) -> GoalData | None:
+    """Parse goal data from LLM response."""
+    goal = data.get("data", {})
+    action = goal.get("action")
+    if not action:
+        return None
+
+    return GoalData(
+        action=action,
+        activity_type=goal.get("activity_type"),
+        target_count=goal.get("target_count", 1),
+        period=goal.get("period", "weekly"),
+        description=goal.get("description"),
     )
 
 

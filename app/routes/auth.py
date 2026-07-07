@@ -16,6 +16,7 @@ router = APIRouter()
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
+    timezone: str | None = None  # Auto-detected from browser
 
 
 class LoginRequest(BaseModel):
@@ -55,7 +56,12 @@ class LinkingTokenResponse(BaseModel):
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     try:
-        _, token = await auth_service.register(db, body.email, body.password)
+        user, token = await auth_service.register(db, body.email, body.password)
+        # Save timezone if provided by browser
+        if body.timezone:
+            from sqlalchemy import update as sql_update
+            from app.models.user import User
+            await db.execute(sql_update(User).where(User.id == user.id).values(timezone=body.timezone))
         return TokenResponse(access_token=token)
     except AuthError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))

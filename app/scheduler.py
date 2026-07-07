@@ -19,53 +19,79 @@ scheduler = AsyncIOScheduler()
 
 
 async def deliver_reminders():
-    """Check and deliver due reminders every minute."""
-    now = datetime.utcnow()
-    current_time = now.strftime("%H:%M")
+    """Check and deliver due reminders every minute, respecting user timezones."""
+    from zoneinfo import ZoneInfo
+
+    now_utc = datetime.utcnow()
 
     async with AsyncSessionLocal() as db:
-        # Get active reminders scheduled for current time
+        # Get ALL active reminders with their user's timezone
         result = await db.execute(
-            select(Reminder).where(
-                Reminder.active == True,
-                Reminder.schedule == current_time,
-            )
+            select(Reminder, User.timezone, User.telegram_chat_id)
+            .join(User, Reminder.user_id == User.id)
+            .where(Reminder.active == True, User.telegram_chat_id != None)
         )
-        reminders = result.scalars().all()
+        rows = result.all()
 
-        if not reminders:
+        if not rows:
             return
 
-        for reminder in reminders:
+        for reminder, user_tz, chat_id in rows:
+            # Get current time in user's timezone
+            try:
+                tz = ZoneInfo(user_tz or "America/Santiago")
+            except Exception:
+                tz = ZoneInfo("America/Santiago")
+
+            user_now = datetime.now(tz)
+            user_current_time = user_now.strftime("%H:%M")
+
+            # Check if it's time to deliver this reminder
+            if reminder.schedule != user_current_time:
+                continue
+
             # Skip if already sent in last 23 hours (prevent duplicates)
             if reminder.last_sent_at:
-                hours_since = (now - reminder.last_sent_at).total_seconds() / 3600
+                hours_since = (now_utc - reminder.last_sent_at).total_seconds() / 3600
                 if hours_since < 23:
                     continue
 
-            # Check frequency
-            if reminder.frequency == "weekdays" and now.weekday() >= 5:
+            # Check frequency / day rules
+            day_of_week = user_now.weekday()  # 0=Mon, 6=Sun
+            today_str = user_now.strftime("%Y-%m-%d")
+
+            if reminder.frequency == "weekdays" and day_of_week >= 5:
                 continue
-            if reminder.frequency == "weekly" and now.weekday() != 0:  # Monday
+            elif reminder.frequency == "weekends" and day_of_week < 5:
+                continue
+            elif reminder.frequency == "specific_days" and reminder.schedule_days:
+                allowed_days = [int(d.strip()) for d in reminder.schedule_days.split(",") if d.strip().isdigit()]
+                if day_of_week not in allowed_days:
+                    continue
+            elif reminder.frequency == "once":
+                if reminder.schedule_date and reminder.schedule_date != today_str:
+                    continue
+            elif reminder.frequency == "biweekly":
+                if reminder.last_sent_at:
+                    days_since = (now_utc - reminder.last_sent_at).days
+                    if days_since < 13:  # ~2 weeks
+                        continue
+            elif reminder.frequency == "weekly" and day_of_week != 0:
                 continue
 
-            # Get user's telegram chat_id
-            user_result = await db.execute(
-                select(User).where(User.id == reminder.user_id)
-            )
-            user = user_result.scalar_one_or_none()
-            if not user or not user.telegram_chat_id:
-                continue
-
-            # Send reminder via Telegram
+            # Send reminder
             try:
                 await _send_telegram(
-                    user.telegram_chat_id,
-                    f"⏰ *Recordatorio*\n\n📌 {reminder.message}\n\n"
-                    f"_Responde con tu actividad cuando la completes_",
+                    chat_id,
+                    f"⏰ *Recordatorio*\n\n"
+                    f"📌 {reminder.message}\n\n"
+                    f"🕐 Son las {user_current_time} — ¡no te olvides!",
                 )
-                reminder.last_sent_at = now
-                logger.info("Reminder delivered: user_id=%s msg=%s", user.id, reminder.message)
+                reminder.last_sent_at = now_utc
+                # Auto-deactivate one-time reminders
+                if reminder.frequency == "once":
+                    reminder.active = False
+                logger.info("Reminder delivered: tz=%s schedule=%s msg=%s", user_tz, reminder.schedule, reminder.message)
             except Exception as e:
                 logger.error("Failed to deliver reminder: %s", e)
 
@@ -75,7 +101,6 @@ async def deliver_reminders():
 async def send_weekly_summaries():
     """Send weekly activity summaries to all users (Sunday 20:00 UTC)."""
     async with AsyncSessionLocal() as db:
-        # Get all users with telegram linked
         result = await db.execute(
             select(User).where(User.telegram_chat_id != None)
         )
@@ -85,7 +110,6 @@ async def send_weekly_summaries():
 
         for user in users:
             try:
-                # Get week's activities
                 act_result = await db.execute(
                     select(Activity).where(
                         Activity.user_id == user.id,
@@ -94,7 +118,6 @@ async def send_weekly_summaries():
                 )
                 activities = act_result.scalars().all()
 
-                # Compile stats
                 total = len(activities)
                 total_cal = sum(a.calories for a in activities)
                 total_min = sum(a.duration_minutes or 0 for a in activities)
@@ -102,7 +125,6 @@ async def send_weekly_summaries():
                 for a in activities:
                     types[a.activity_type] = types.get(a.activity_type, 0) + 1
 
-                # Build summary message
                 if total == 0:
                     msg = (
                         "📊 *Resumen semanal*\n\n"
@@ -141,7 +163,6 @@ async def _send_telegram(chat_id: int, text: str):
 
 def start_scheduler():
     """Start the APScheduler with all jobs."""
-    # Check reminders every minute
     scheduler.add_job(
         deliver_reminders,
         trigger=IntervalTrigger(minutes=1),
@@ -149,7 +170,6 @@ def start_scheduler():
         replace_existing=True,
     )
 
-    # Weekly summary every Sunday at 20:00 UTC
     scheduler.add_job(
         send_weekly_summaries,
         trigger=CronTrigger(day_of_week="sun", hour=20, minute=0),

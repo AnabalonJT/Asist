@@ -17,20 +17,23 @@ logger = logging.getLogger(__name__)
  
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting HabitTrack API — env=%s", settings.environment)
+    logger.info("Starting HabitTrack API — env=%s debug=%s", settings.environment, settings.debug)
 
     from app.database import init_db, close_db
 
-    # Always ensure tables exist (safe: create_all is idempotent)
+    # Ensure tables exist
     await init_db()
     logger.info("Database tables ensured")
 
-    # Start Telegram bot in polling mode
-    from app.services.telegram_bot import start_polling, stop_polling
-    try:
-        await start_polling()
-    except Exception as e:
-        logger.warning("Could not start Telegram bot: %s", e)
+    # Telegram: webhook in production, polling in dev
+    if settings.use_webhook:
+        await _register_webhook()
+    else:
+        from app.services.telegram_bot import start_polling, stop_polling
+        try:
+            await start_polling()
+        except Exception as e:
+            logger.warning("Could not start Telegram polling: %s", e)
 
     # Start APScheduler for reminders and weekly summaries
     from app.scheduler import start_scheduler, stop_scheduler
@@ -46,14 +49,39 @@ async def lifespan(app: FastAPI):
         stop_scheduler()
     except Exception:
         pass
-    try:
-        await stop_polling()
-    except Exception:
-        pass
+    if not settings.use_webhook:
+        try:
+            from app.services.telegram_bot import stop_polling
+            await stop_polling()
+        except Exception:
+            pass
     await close_db()
     logger.info("HabitTrack API shut down")
- 
- 
+
+
+async def _register_webhook():
+    """Register Telegram webhook URL on startup (production only)."""
+    import httpx
+    url = f"https://api.telegram.org/bot{settings.bot_token}/setWebhook"
+    payload = {
+        "url": settings.telegram_webhook_url,
+        "allowed_updates": ["message", "edited_message"],
+    }
+    if settings.telegram_webhook_secret:
+        payload["secret_token"] = settings.telegram_webhook_secret
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(url, json=payload)
+            data = resp.json()
+            if data.get("ok"):
+                logger.info("Telegram webhook registered: %s", settings.telegram_webhook_url)
+            else:
+                logger.error("Failed to register webhook: %s", data)
+    except Exception as e:
+        logger.error("Error registering webhook: %s", e)
+
+
 app = FastAPI(
     title="HabitTrack API",
     description="Telegram-based habit tracking with web dashboard",
@@ -71,13 +99,14 @@ app.add_middleware(
 )
  
 # ── Routes ────────────────────────────────────────────────────────────────────
-from app.routes import auth, telegram, dashboard, activities, reminders  # noqa: E402
+from app.routes import auth, telegram, dashboard, activities, reminders, goals  # noqa: E402
  
 app.include_router(auth.router,       prefix="/api/auth",       tags=["Auth"])
 app.include_router(telegram.router,   prefix="/api/telegram",   tags=["Telegram"])
 app.include_router(dashboard.router,  prefix="/api/dashboard",  tags=["Dashboard"])
 app.include_router(activities.router, prefix="/api/activities", tags=["Activities"])
 app.include_router(reminders.router,  prefix="/api/reminders",  tags=["Reminders"])
+app.include_router(goals.router,      prefix="/api/goals",      tags=["Goals"])
  
  
 @app.get("/health")

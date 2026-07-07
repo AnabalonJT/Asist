@@ -846,3 +846,92 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
   ]
 }
 ```
+
+
+## Phase 2: Enhanced Features
+
+- [ ] 23. Strength training detailed logging
+  - [ ] 23.1 Update LLM prompt for multi-set strength parsing
+    - Modify system prompt to extract: exercise name, sets array [{reps, weight_kg}]
+    - Support formats: "10x4 con 50kg press banca", "10 reps 40kg, 10 reps 50kg, 8x60kg"
+    - Return activity_type as exercise name (e.g. "press banca") not "strength"/"weights"
+    - Include total volume calculation (sets × reps × weight)
+    - _Requirements: strength logging_
+
+  - [ ] 23.2 Update Activity model for strength data
+    - Add `sets_data` JSON column to Activity (nullable, for strength exercises)
+    - Format: [{"reps": 10, "weight_kg": 50}, {"reps": 10, "weight_kg": 50}, ...]
+    - Add `exercise_name` field (e.g. "Press Banca", "Sentadillas")
+    - Keep backward compatible with existing activities
+    - _Requirements: strength logging_
+
+  - [ ] 23.3 Update bot confirmation for strength exercises
+    - Show exercise name (not "Strength" or "Weights")
+    - Show sets detail: "3 series: 10×40kg, 10×50kg, 8×60kg"
+    - Show total volume instead of calories (e.g. "Vol: 1,880 kg")
+    - _Requirements: strength logging_
+
+  - [ ] 23.4 Update dashboard to display strength exercises
+    - Show sets/reps/weight for strength activities instead of calories
+    - Show exercise name properly in activity list
+    - _Requirements: strength logging_
+
+- [ ] 24. Habit goals system
+  - [ ] 24.1 Create Goal model
+    - New table `goals` with: id, user_id, activity_type, target_frequency (times per period), period (daily/weekly/monthly), target_count, created_at, active
+    - Examples: "correr 3 veces por semana", "meditar todos los días"
+    - _Requirements: habit goals_
+
+  - [ ] 24.2 Add goal intent to LLM prompt
+    - Detect "quiero correr 3 veces por semana" as goal creation
+    - Support: daily (todos los días), weekly (X veces por semana), specific days
+    - _Requirements: habit goals_
+
+  - [ ] 24.3 Implement goal progress tracking
+    - Calculate current progress: how many times completed this period
+    - Show progress in confirmation: "🎯 Meta correr: 2/3 esta semana"
+    - Auto-detect when goal is met: "🏆 ¡Meta cumplida!"
+    - _Requirements: habit goals_
+
+  - [ ] 24.4 Show goals in dashboard
+    - Progress bars or circular indicators for each goal
+    - Show completed/target for current period
+    - Color coding: green (on track), yellow (behind), red (missed)
+    - _Requirements: habit goals_
+
+  - [ ] 24.5 Goal management via bot
+    - "mis metas" → list active goals with progress
+    - "eliminar meta de correr" → deactivate goal
+    - _Requirements: habit goals_
+
+- [ ] 25. Advanced reminder scheduling
+  - [ ] 25.1 Update Reminder model for flexible schedules
+    - Add `schedule_type` field: "daily", "weekdays", "specific_days", "once", "interval"
+    - Add `schedule_days` field: JSON array of days (e.g. [1,3] = lunes y miércoles, [5,6] = fin de semana)
+    - Add `schedule_date` field: for one-time reminders (e.g. "2026-07-06")
+    - Add `schedule_interval` field: "every_other_week", "biweekly"
+    - _Requirements: advanced reminders_
+
+  - [ ] 25.2 Update LLM prompt for advanced reminder parsing
+    - "recuérdame correr los lunes y miércoles a las 7:30" → specific_days=[0,2], schedule="07:30"
+    - "el lunes 6 de julio a las 8am ir al Dr" → once, schedule_date="2026-07-06", schedule="08:00"
+    - "recordatorio de gym solo fines de semana" → specific_days=[5,6]
+    - "cada 2 semanas ir al dentista" → interval="biweekly"
+    - _Requirements: advanced reminders_
+
+  - [ ] 25.3 Update scheduler for flexible delivery
+    - Check day-of-week against schedule_days
+    - Check specific date for one-time reminders
+    - Auto-delete or deactivate one-time reminders after delivery
+    - Handle "every other week" logic with last_sent_at
+    - _Requirements: advanced reminders_
+
+  - [ ] 25.4 Update reminder display in dashboard and bot
+    - Show schedule in human-readable format: "Lun y Mié a las 7:30"
+    - Show one-time reminders with date: "6 Jul 08:00 — Ir al Dr"
+    - Distinguish between recurring and one-time in the UI
+    - _Requirements: advanced reminders_
+
+- [ ] 26. Checkpoint - Phase 2 complete
+  - All enhanced features working: strength logging, goals, advanced reminders
+  - Deploy and verify in production

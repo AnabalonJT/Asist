@@ -5,6 +5,8 @@ import { TelegramLinkCard } from '../components/TelegramLinkCard'
 import { ActivityRow } from '../components/ActivityRow'
 import { StatCard } from '../components/StatCard'
 import { Calendar } from '../components/Calendar'
+import { ReminderList } from '../components/ReminderList'
+import { GoalList } from '../components/GoalList'
 
 export function DashboardPage() {
   const { user, logout } = useAuth()
@@ -120,6 +122,12 @@ export function DashboardPage() {
 
         {/* Calendar */}
         <Calendar />
+
+        {/* Goals */}
+        <GoalList />
+
+        {/* Reminders */}
+        <ReminderList />
 
         {/* Breakdown by type */}
         {stats && stats.breakdown.length > 0 && (

@@ -18,9 +18,11 @@ class Activity(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     activity_type: Mapped[str] = mapped_column(String(100), index=True)
+    exercise_name: Mapped[str | None] = mapped_column(String(100))  # "Press Banca", "Sentadillas"
     duration_minutes: Mapped[int | None] = mapped_column(Integer)
     distance_km: Mapped[float | None] = mapped_column(Float)
     calories: Mapped[int] = mapped_column(Integer)
+    sets_data: Mapped[str | None] = mapped_column(String(500))  # JSON: [{"reps":10,"weight_kg":50},...]
     timestamp: Mapped[datetime] = mapped_column(index=True, default=func.now())
     created_at: Mapped[datetime] = mapped_column(default=func.now())
     
