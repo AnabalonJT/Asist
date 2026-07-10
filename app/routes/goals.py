@@ -22,6 +22,7 @@ class GoalOut(BaseModel):
     period: str
     active: bool
     current_progress: int
+    ends_at: str | None = None
 
     @classmethod
     async def from_model(cls, g: Goal, db: AsyncSession) -> "GoalOut":
@@ -34,6 +35,7 @@ class GoalOut(BaseModel):
             period=g.period,
             active=g.active,
             current_progress=progress,
+            ends_at=g.ends_at,
         )
 
 
@@ -50,7 +52,7 @@ async def list_goals(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Goal).where(Goal.user_id == current_user.id, Goal.active == True)
+        select(Goal).where(Goal.user_id == current_user.id, Goal.active == True, Goal.challenge_id == None)
     )
     goals = result.scalars().all()
     return [await GoalOut.from_model(g, db) for g in goals]

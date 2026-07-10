@@ -7,6 +7,7 @@ import { Calendar } from '../components/Calendar'
 import { ReminderList } from '../components/ReminderList'
 import { GoalList } from '../components/GoalList'
 import { ActivityFeed } from '../components/ActivityFeed'
+import { ChallengeList } from '../components/ChallengeList'
 
 export function DashboardPage() {
   const { user, logout } = useAuth()
@@ -81,7 +82,13 @@ export function DashboardPage() {
           </div>
         )}
 
-        {/* Goals */}
+        {/* Reminders */}
+        <ReminderList />
+
+        {/* Challenges (grouped goals) */}
+        <ChallengeList />
+
+        {/* Individual Goals */}
         <GoalList />
 
         {/* Calendar */}
@@ -89,9 +96,6 @@ export function DashboardPage() {
 
         {/* Activity Feed with filters */}
         <ActivityFeed />
-
-        {/* Reminders */}
-        <ReminderList />
       </main>
     </div>
   )

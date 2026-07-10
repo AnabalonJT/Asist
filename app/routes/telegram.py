@@ -193,6 +193,112 @@ def _resolve_when(when: str | None, user_now) -> 'datetime':
     return user_now
 
 
+def _detect_challenge_keywords(text: str) -> dict | None:
+    """
+    Detect challenge/multi-goal intent from keywords.
+    Triggers when: "durante X días/meses" + multiple activities (comma/y separated).
+    """
+    import re
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    lower = text.lower().strip()
+
+    # Must contain a duration trigger
+    duration_days = None
+    duration_match = re.search(r'(\d+)\s*días', lower)
+    if duration_match:
+        duration_days = int(duration_match.group(1))
+    
+    months_match = re.search(r'(\d+)\s*mes(?:es)?', lower)
+    if months_match:
+        duration_days = int(months_match.group(1)) * 30
+
+    # Must contain "durante" or "por" or "quiero" with duration
+    triggers = ["durante", "por", "desafío", "desafio", "challenge"]
+    has_trigger = any(t in lower for t in triggers)
+    
+    if not duration_days and not has_trigger:
+        return None
+    
+    # Must have multiple activities (separated by comma or "y")
+    # Remove the duration/trigger part to get activities
+    activities_text = lower
+    activities_text = re.sub(r'durante\s+\d+\s*(días|meses?)', '', activities_text)
+    activities_text = re.sub(r'por\s+\d+\s*(días|meses?)', '', activities_text)
+    activities_text = re.sub(r'desaf[ií]o:?\s*', '', activities_text)
+    activities_text = re.sub(r'quiero\s*', '', activities_text)
+    activities_text = activities_text.strip(" .,;:-")
+
+    # Split by comma and "y"
+    parts = re.split(r'\s*[,]\s*|\s+y\s+', activities_text)
+    parts = [p.strip() for p in parts if p.strip() and len(p.strip()) > 1]
+
+    if len(parts) < 2:
+        return None  # Not a multi-goal, let LLM handle as single goal
+
+    # Build goals from parts
+    goals = []
+    for part in parts:
+        # Try to extract frequency
+        target_count = 1
+        period = "daily"
+        
+        freq_match = re.search(r'(\d+)\s*(?:veces?\s*(?:por|a la)\s*semana|x\s*semana)', part)
+        if freq_match:
+            target_count = int(freq_match.group(1))
+            period = "weekly"
+            part = re.sub(r'\d+\s*(?:veces?\s*(?:por|a la)\s*semana|x\s*semana)', '', part).strip()
+        elif "diario" in part or "todos los días" in part or "cada día" in part:
+            target_count = 1
+            period = "daily"
+            part = re.sub(r'(?:diario|todos los días|cada día)', '', part).strip()
+
+        # Clean activity name
+        activity = part.strip(" .,;:-")
+        if not activity:
+            continue
+
+        # Map common names
+        activity_map = {
+            "deporte": "gym", "gimnasio": "gym", "gym": "gym",
+            "correr": "running", "caminar": "walking", "nadar": "swimming",
+            "meditar": "meditation", "meditación": "meditation",
+            "leer": "reading", "estudiar": "study",
+            "cama": "cama", "mi cama": "cama", "hacer mi cama": "cama",
+            "yoga": "yoga", "bici": "cycling",
+        }
+        activity_type = activity_map.get(activity, activity)
+
+        goals.append({
+            "activity_type": activity_type,
+            "target_count": target_count,
+            "period": period,
+            "description": activity.capitalize(),
+        })
+
+    if len(goals) < 2:
+        return None
+
+    # Calculate ends_at
+    ends_at = None
+    if duration_days:
+        now = datetime.now(ZoneInfo("America/Santiago"))
+        end_date = now + timedelta(days=duration_days)
+        ends_at = end_date.strftime("%Y-%m-%d")
+
+    name = f"Desafío {duration_days} días" if duration_days else "Mi desafío"
+
+    return {
+        "intent": "challenge",
+        "data": {
+            "name": name,
+            "ends_at": ends_at,
+            "goals": goals,
+        }
+    }
+
+
 def _detect_life_keywords(text: str) -> dict | None:
     """
     Detect life/daily activities that the LLM might refuse to classify.
@@ -404,6 +510,9 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     # Quick keyword detection for reminders (LLM sometimes misclassifies these)
     forced_reminder = _detect_reminder_keywords(text)
     
+    # Quick keyword detection for challenges/multi-goal
+    forced_challenge = _detect_challenge_keywords(text)
+    
     # Quick keyword detection for life activities the LLM might reject
     forced_activity = _detect_life_keywords(text)
 
@@ -411,6 +520,8 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     if not response:
         if forced_reminder:
             response = forced_reminder
+        elif forced_challenge:
+            response = forced_challenge
         elif forced_activity:
             response = forced_activity
         else:
@@ -423,6 +534,10 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     if intent != "reminder" and forced_reminder:
         intent = "reminder"
         response = forced_reminder
+    # Override for challenges
+    elif intent != "challenge" and forced_challenge:
+        intent = "challenge"
+        response = forced_challenge
     # Override if LLM rejected a life activity we detected
     elif intent == "chat" and forced_activity:
         intent = "activity"
@@ -601,6 +716,9 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     elif intent == "goal":
         await _handle_goal(chat_id, user, response, db)
 
+    elif intent == "challenge":
+        await _handle_challenge(chat_id, user, response, db)
+
     else:
         await _send_help(chat_id, user)
 
@@ -652,6 +770,59 @@ async def _check_goal_progress(user_id: int, activity_type: str, db: AsyncSessio
         return f"🎯 Meta: {bar} {progress}/{goal.target_count} {period_text}"
 
 
+async def _handle_challenge(chat_id: int, user: User, response: dict, db: AsyncSession) -> None:
+    """Create a challenge with multiple goals."""
+    from app.models.challenge import Challenge
+    from app.models.goal import Goal
+
+    data = response.get("data", {})
+    name = data.get("name", "Mi desafío")
+    ends_at = data.get("ends_at")
+    goals_data = data.get("goals", [])
+
+    if not goals_data:
+        await _send(chat_id, "No entendí las actividades del desafío. Intenta: \"75 días de deporte, meditar y leer\"")
+        return
+
+    # Create challenge
+    challenge = Challenge(
+        user_id=user.id,
+        name=name,
+        ends_at=ends_at,
+        active=True,
+    )
+    db.add(challenge)
+    await db.flush()
+
+    # Create goals linked to this challenge
+    goal_lines = []
+    for g in goals_data:
+        goal = Goal(
+            user_id=user.id,
+            challenge_id=challenge.id,
+            activity_type=g.get("activity_type", "actividad"),
+            description=g.get("description", g.get("activity_type", "")),
+            target_count=g.get("target_count", 1),
+            period=g.get("period", "daily"),
+            ends_at=ends_at,
+            active=True,
+        )
+        db.add(goal)
+        freq = {"daily": "diario", "weekly": "semanal", "monthly": "mensual"}.get(goal.period, goal.period)
+        goal_lines.append(f"  • {goal.description} ({goal.target_count}x {freq})")
+
+    await db.flush()
+
+    ends_text = f"\n📅 Hasta: {ends_at}" if ends_at else "\n♾️ Sin fecha límite"
+    goals_list = "\n".join(goal_lines)
+
+    await _send(chat_id,
+        f"🏆 *Desafío creado: {name}*{ends_text}\n\n"
+        f"📋 Metas incluidas:\n{goals_list}\n\n"
+        f"_Registra tus actividades y verás el progreso de cada meta_"
+    )
+
+
 async def _handle_goal(chat_id: int, user: User, response: dict, db: AsyncSession) -> None:
     """Handle goal create/list/delete."""
     from app.services.llm_service import parse_goal
@@ -673,16 +844,23 @@ async def _handle_goal(chat_id: int, user: User, response: dict, db: AsyncSessio
             description=goal_data.description or f"{goal_data.activity_type} {goal_data.target_count}x/{goal_data.period}",
             target_count=goal_data.target_count,
             period=goal_data.period,
+            ends_at=goal_data.ends_at,
             active=True,
         )
         db.add(goal)
         await db.flush()
 
         period_text = {"daily": "al día", "weekly": "por semana", "monthly": "al mes"}.get(goal_data.period, goal_data.period)
+        duration_text = ""
+        if goal_data.ends_at:
+            duration_text = f"\n📅 Hasta: {goal_data.ends_at}"
+        else:
+            duration_text = "\n♾️ Sin fecha límite"
+
         await _send(chat_id,
             f"🎯 Meta creada!\n\n"
             f"📌 *{goal_data.description or goal_data.activity_type}*\n"
-            f"🏆 {goal_data.target_count} veces {period_text}\n\n"
+            f"🏆 {goal_data.target_count} veces {period_text}{duration_text}\n\n"
             f"_Te mostraré tu progreso cada vez que registres esta actividad_"
         )
 

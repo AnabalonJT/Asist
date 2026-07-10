@@ -70,7 +70,7 @@ async def init_db() -> None:
     """
     async with engine.begin() as conn:
         # Import all models to register them with Base.metadata
-        from app.models import user, activity, reminder, linking_token, calorie_formula, goal  # noqa: F401
+        from app.models import user, activity, reminder, linking_token, calorie_formula, goal, challenge  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
 
     # Add missing columns to existing tables (create_all doesn't do ALTER TABLE)
@@ -97,6 +97,8 @@ async def _migrate_columns() -> None:
         ("activities", "exercise_name", "VARCHAR(100)", None),
         ("activities", "sets_data", "VARCHAR(500)", None),
         ("users", "timezone", "VARCHAR(50)", "'America/Santiago'"),
+        ("goals", "ends_at", "VARCHAR(20)", None),
+        ("goals", "challenge_id", "INTEGER", None),
     ]
 
     async with engine.begin() as conn:

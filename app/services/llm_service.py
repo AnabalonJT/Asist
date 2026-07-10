@@ -43,6 +43,7 @@ class GoalData:
     target_count: int = 1
     period: str = "weekly"  # "daily", "weekly", "monthly"
     description: str | None = None
+    ends_at: str | None = None  # "YYYY-MM-DD" or None (forever)
 
 
 SYSTEM_PROMPT = """Eres un asistente de seguimiento de hábitos y deportes. Tu trabajo es interpretar mensajes del usuario y clasificarlos.
@@ -128,16 +129,38 @@ Ejemplos de timezone:
     "activity_type": "string (tipo de actividad de la meta)",
     "target_count": number (cuántas veces por periodo),
     "period": "daily" | "weekly" | "monthly",
-    "description": "string (descripción legible de la meta)"
+    "description": "string (descripción legible de la meta)",
+    "ends_at": "YYYY-MM-DD" o null (fecha de término, null = para siempre)
   }
 }
 
 Ejemplos de metas:
-- "quiero correr 3 veces por semana" → create, activity_type="running", target_count=3, period="weekly", description="Correr 3 veces por semana"
-- "meta: meditar todos los días" → create, activity_type="meditation", target_count=1, period="daily", description="Meditar todos los días"
-- "mi meta es ir al gym 4 veces por semana" → create, activity_type="gym", target_count=4, period="weekly"
+- "quiero correr 3 veces por semana" → create, activity_type="running", target_count=3, period="weekly", ends_at=null
+- "meta: meditar todos los días por 75 días" → create, activity_type="meditation", target_count=1, period="daily", ends_at=(fecha actual + 75 días)
+- "ir al gym 4 veces por semana hasta el 2 de septiembre" → create, activity_type="gym", target_count=4, period="weekly", ends_at="2026-09-02"
+- "correr diario por 3 meses" → create, activity_type="running", target_count=1, period="daily", ends_at=(fecha actual + 90 días)
 - "mis metas" → list
 - "eliminar meta de correr" → delete, activity_type="running"
+
+## Si el usuario quiere crear un DESAFÍO (múltiples metas agrupadas):
+{
+  "intent": "challenge",
+  "data": {
+    "name": "string (nombre del desafío)",
+    "ends_at": "YYYY-MM-DD" o null,
+    "goals": [
+      {"activity_type": "string", "target_count": number, "period": "daily"|"weekly"|"monthly", "description": "string"},
+      ...
+    ]
+  }
+}
+
+Ejemplos de desafíos:
+- "durante 75 días quiero hacer deporte, mi cama y meditar" → challenge, name="75 días de disciplina", ends_at=(+75 días), goals=[{activity_type:"gym",target_count:1,period:"daily"},{activity_type:"cama",target_count:1,period:"daily"},{activity_type:"meditation",target_count:1,period:"daily"}]
+- "3 meses: correr 3 veces por semana y meditar todos los días" → challenge, name="Desafío 3 meses", ends_at=(+90 días), goals=[{activity_type:"running",target_count:3,period:"weekly"},{activity_type:"meditation",target_count:1,period:"daily"}]
+- "desafío: leer y estudiar todos los días por 30 días" → challenge, name="30 días de estudio", ends_at=(+30 días), goals=[...]
+
+REGLA: Si el mensaje menciona MÚLTIPLES actividades con una duración compartida (X días, X meses, etc), es un "challenge". Si es solo UNA actividad, es un "goal".
 
 Reglas importantes:
 - "Levanté 100kg en press banca" → activity, category="strength", exercise_name="Press Banca", sets=[{"reps":1,"weight_kg":100}]
@@ -234,6 +257,7 @@ def parse_goal(data: dict) -> GoalData | None:
         target_count=goal.get("target_count", 1),
         period=goal.get("period", "weekly"),
         description=goal.get("description"),
+        ends_at=goal.get("ends_at"),
     )
 
 

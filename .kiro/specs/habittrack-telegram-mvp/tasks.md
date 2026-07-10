@@ -935,3 +935,17 @@ This implementation plan breaks down the HabitTrack Telegram MVP into discrete, 
 - [ ] 26. Checkpoint - Phase 2 complete
   - All enhanced features working: strength logging, goals, advanced reminders
   - Deploy and verify in production
+
+
+- [ ] 27. Interactive calendar and layout fix
+  - [ ] 27.1 Make calendar days clickable with activity modal
+    - When user clicks a day in the calendar, open a modal/popup
+    - Modal shows all activities for that day with details (type, duration, distance, calories, time)
+    - Show strength exercises with sets/reps/weight
+    - Show life activities with their details
+    - Modal should be dismissible by clicking outside or pressing X
+    - _Requirements: dashboard UX_
+
+  - [ ] 27.2 Move reminders above challenges in dashboard layout
+    - Reorder DashboardPage: Stats → Reminders → Challenges → Goals → Calendar → Activity Feed
+    - _Requirements: dashboard UX_

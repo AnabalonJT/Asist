@@ -94,7 +94,11 @@ export function GoalList() {
                   <span className="text-lg">{completed ? '🏆' : icon}</span>
                   <div>
                     <p className="text-sm font-medium text-text-primary">{g.description}</p>
-                    <p className="text-xs text-text-dim capitalize">{g.activity_type} · {period(g.period)}</p>
+                    <p className="text-xs text-text-dim capitalize">
+                      {g.activity_type} · {period(g.period)}
+                      {g.ends_at && ` · hasta ${new Date(g.ends_at + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}`}
+                      {!g.ends_at && ' · sin límite'}
+                    </p>
                   </div>
                 </div>
                 <button
