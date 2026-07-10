@@ -14,7 +14,7 @@ primary_region = 'iad'
   OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
   OPENROUTER_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free'
   TELEGRAM_BOT_USERNAME = 'HabiFolloBot'
-  TELEGRAM_WEBHOOK_URL = https://habittrack-bot.fly.dev/api/telegram/webhook
+  TELEGRAM_WEBHOOK_URL = 'https://habittrack-bot.fly.dev/api/telegram/webhook'
 
 [http_service]
   internal_port = 8000

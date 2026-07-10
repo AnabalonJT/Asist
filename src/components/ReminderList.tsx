@@ -52,8 +52,27 @@ export function ReminderList() {
     )
   }
 
-  const freq = (f: string) =>
-    ({ daily: 'Diario', weekly: 'Semanal', weekdays: 'L-V' }[f] ?? f)
+  const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+
+  const formatFreq = (r: ReminderItem): string => {
+    if (r.frequency === 'daily') return 'Todos los días'
+    if (r.frequency === 'weekdays') return 'Lun a Vie'
+    if (r.frequency === 'weekends') return 'Sáb y Dom'
+    if (r.frequency === 'weekly') return 'Semanal'
+    if (r.frequency === 'biweekly') return 'Cada 2 semanas'
+    if (r.frequency === 'specific_days' && r.schedule_days) {
+      const days = r.schedule_days.split(',').map(d => parseInt(d.trim()))
+      return days.map(d => DAY_NAMES[d] ?? '?').join(' y ')
+    }
+    if (r.frequency === 'once') {
+      if (r.schedule_date) {
+        const d = new Date(r.schedule_date + 'T12:00:00')
+        return d.toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short' })
+      }
+      return 'Una vez'
+    }
+    return r.frequency
+  }
 
   return (
     <div className="card">
@@ -69,7 +88,7 @@ export function ReminderList() {
             <div className="flex-1 min-w-0">
               <p className="text-sm text-text-primary truncate">{r.message}</p>
               <p className="text-xs text-text-secondary">
-                🕐 {r.schedule} · {freq(r.frequency)}
+                🕐 {r.schedule} · {formatFreq(r)}
               </p>
             </div>
             <div className="flex items-center gap-2 ml-2">

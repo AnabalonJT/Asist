@@ -18,9 +18,9 @@ class ActivityData:
     category: str = "sport"  # "sport", "strength", "habit", "life"
     duration_minutes: int | None = None
     distance_km: float | None = None
-    detail: str | None = None  # e.g. "4x100kg press banca"
-    exercise_name: str | None = None  # e.g. "Press Banca" (for strength)
-    sets: list | None = None  # [{"reps": 10, "weight_kg": 50}, ...]
+    detail: str | None = None
+    exercise_name: str | None = None
+    sets: list | None = None
     confidence: float = 0.0
 
 
@@ -58,7 +58,7 @@ Responde SIEMPRE en formato JSON con esta estructura:
   "intent": "activity",
   "data": {
     "activity_type": "string (running, walking, cycling, gym, swimming, yoga, hiking, weights, crossfit, stretching, basketball, football, tennis, dance, meditation, reading, study, strength, cardio)",
-    "category": "sport" | "strength" | "habit",
+    "category": "sport" | "strength" | "habit" | "life",
     "duration_minutes": number o null,
     "distance_km": number o null,
     "detail": "string o null (detalle extra: peso, series, reps, libro, etc)",
@@ -239,6 +239,13 @@ def parse_goal(data: dict) -> GoalData | None:
 
 async def _call_llm(user_message: str) -> str | None:
     """Call OpenRouter API and return the raw response text."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    # Inject current date so LLM can resolve relative dates
+    now = datetime.now(ZoneInfo("America/Santiago"))
+    date_prefix = f"[Fecha actual: {now.strftime('%Y-%m-%d')} ({now.strftime('%A')}), {now.strftime('%H:%M')}] "
+
     url = f"{settings.openrouter_base_url}/chat/completions"
     headers = {
         "Authorization": f"Bearer {settings.openrouter_api_key}",
@@ -248,7 +255,7 @@ async def _call_llm(user_message: str) -> str | None:
         "model": settings.openrouter_model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
+            {"role": "user", "content": date_prefix + user_message},
         ],
         "temperature": 0.1,
         "max_tokens": 300,

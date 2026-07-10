@@ -20,6 +20,9 @@ from app.services.auth_service import AuthError, auth_service
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# Deduplication: track processed update_ids to prevent Telegram retries
+_processed_updates: set[int] = set()
+
 
 async def _send(chat_id: int, text: str, parse_mode: str = "Markdown") -> None:
     """Send a message via Telegram Bot API."""
@@ -54,6 +57,16 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         update: dict[str, Any] = await request.json()
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+
+    # Deduplicate: Telegram may retry if we're slow to respond
+    update_id = update.get("update_id")
+    if update_id and update_id in _processed_updates:
+        return {"ok": True}
+    if update_id:
+        _processed_updates.add(update_id)
+        # Keep set from growing forever (max 1000 entries)
+        if len(_processed_updates) > 1000:
+            _processed_updates.clear()
 
     message = update.get("message") or update.get("edited_message")
     if not message:
@@ -109,29 +122,146 @@ async def _handle_start(chat_id: int, text: str, db: AsyncSession) -> None:
         await db.rollback()
 
 
+def _detect_when_keywords(text: str) -> str | None:
+    """Detect time references in the message text."""
+    lower = text.lower()
+    
+    if "ayer" in lower and "anteayer" not in lower:
+        return "yesterday"
+    if "anteayer" in lower:
+        return "2_days_ago"
+    if "la semana pasada" in lower:
+        return "7_days_ago"
+    if "hace 2 días" in lower or "hace dos días" in lower:
+        return "2_days_ago"
+    if "hace 3 días" in lower or "hace tres días" in lower:
+        return "3_days_ago"
+    
+    # Day names: "el lunes", "el martes", etc.
+    import re
+    day_match = re.search(r'(?:el\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)', lower)
+    if day_match:
+        return f"last_{day_match.group(1)}"
+    
+    return None  # means "now"
+
+
+def _resolve_when(when: str | None, user_now) -> 'datetime':
+    """Resolve a 'when' string to an actual datetime."""
+    from datetime import timedelta
+    import re
+
+    if not when or when == "now":
+        return user_now
+
+    lower = when.lower().strip()
+
+    if lower == "yesterday":
+        return user_now - timedelta(days=1)
+    elif lower in ("anteayer", "2_days_ago", "2 days ago"):
+        return user_now - timedelta(days=2)
+    elif lower in ("3_days_ago", "3 days ago"):
+        return user_now - timedelta(days=3)
+    elif lower in ("7_days_ago", "last_week", "la semana pasada"):
+        return user_now - timedelta(days=7)
+
+    # Try "X_days_ago" pattern
+    days_match = re.match(r'(\d+)_?days?_?ago', lower)
+    if days_match:
+        return user_now - timedelta(days=int(days_match.group(1)))
+
+    # Try day names: "last_monday", "last_tuesday", etc.
+    day_map = {"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+               "friday": 4, "saturday": 5, "sunday": 6,
+               "lunes": 0, "martes": 1, "miercoles": 2, "miércoles": 2,
+               "jueves": 3, "viernes": 4, "sabado": 5, "sábado": 5, "domingo": 6}
+    for day_name, day_num in day_map.items():
+        if day_name in lower:
+            days_back = (user_now.weekday() - day_num) % 7
+            if days_back == 0:
+                days_back = 7  # "last monday" when today is monday = 7 days ago
+            return user_now - timedelta(days=days_back)
+
+    # Try ISO date: "2026-07-05"
+    try:
+        from datetime import datetime
+        parsed = datetime.fromisoformat(lower)
+        return parsed.replace(hour=user_now.hour, minute=user_now.minute)
+    except (ValueError, TypeError):
+        pass
+
+    return user_now
+
+
 def _detect_life_keywords(text: str) -> dict | None:
     """
     Detect life/daily activities that the LLM might refuse to classify.
+    Also detects common sports activities as fallback when LLM fails.
     Returns a fake LLM activity response or None.
     """
+    import re
     lower = text.lower().strip()
     
-    # Map of keywords → (activity_type, detail)
-    patterns = [
-        (["hice caca", "fui al baño", "hice del baño", "fui a cagar", "cagué", "hice popo", "fui al wc"], "baño", None),
-        (["comí", "almorcé", "desayuné", "cené", "merendé", "comimos"], "comer", None),
-        (["tomé agua", "bebí agua", "me hidraté", "vaso de agua"], "agua", None),
-        (["dormí", "me dormí", "me acosté"], "dormir", None),
-        (["vi una película", "vi una peli", "vi una serie", "vi tele", "vi netflix"], "entretenimiento", None),
-        (["cociné", "hice comida", "preparé comida"], "cocinar", None),
-        (["limpié", "hice aseo", "ordené", "aspiré", "lavé"], "limpieza", None),
-        (["me duché", "me bañé"], "higiene", None),
+    # Sport patterns (fallback for when LLM fails)
+    sport_patterns = [
+        (r'corr[íi]|corriendo|troté', "running"),
+        (r'camin[ée]|caminando', "walking"),
+        (r'nad[ée]|nadando|natación', "swimming"),
+        (r'bici|ciclismo|pedale[ée]', "cycling"),
+        (r'gym|gimnasio', "gym"),
+        (r'yoga', "yoga"),
+        (r'medit[ée]|meditando|meditación', "meditation"),
+        (r'le[íi]|leyendo|lectura', "reading"),
+        (r'estudi[ée]|estudiando', "study"),
     ]
     
-    for keywords, activity_type, _ in patterns:
+    for pattern, activity_type in sport_patterns:
+        if re.search(pattern, lower):
+            # Extract distance
+            dist_match = re.search(r'(\d+(?:[.,]\d+)?)\s*(?:km|kilómetros)', lower)
+            distance = float(dist_match.group(1).replace(',', '.')) if dist_match else None
+            
+            # Extract duration
+            dur_match = re.search(r'(\d+)\s*(?:min|minutos|hrs?|horas?)', lower)
+            duration = None
+            if dur_match:
+                val = int(dur_match.group(1))
+                if 'hr' in lower or 'hora' in lower:
+                    duration = val * 60
+                else:
+                    duration = val
+            
+            category = "sport" if activity_type in ("running", "walking", "swimming", "cycling", "gym") else "habit"
+            
+            return {
+                "intent": "activity",
+                "data": {
+                    "activity_type": activity_type,
+                    "category": category,
+                    "duration_minutes": duration,
+                    "distance_km": distance,
+                    "detail": None,
+                    "exercise_name": None,
+                    "sets": None,
+                    "confidence": 0.85,
+                }
+            }
+    
+    # Life activity patterns
+    life_patterns = [
+        (["hice caca", "fui al baño", "hice del baño", "fui a cagar", "cagué", "hice popo", "fui al wc"], "baño"),
+        (["comí", "almorcé", "desayuné", "cené", "merendé", "comimos"], "comer"),
+        (["tomé agua", "bebí agua", "me hidraté", "vaso de agua"], "agua"),
+        (["dormí", "me dormí", "me acosté"], "dormir"),
+        (["vi una película", "vi una peli", "vi una serie", "vi tele", "vi netflix"], "entretenimiento"),
+        (["cociné", "hice comida", "preparé comida"], "cocinar"),
+        (["limpié", "hice aseo", "ordené", "aspiré", "lavé"], "limpieza"),
+        (["me duché", "me bañé"], "higiene"),
+    ]
+    
+    for keywords, activity_type in life_patterns:
         for kw in keywords:
             if kw in lower:
-                # Extract any extra detail after the keyword
                 detail = lower.replace(kw, "").strip(" .,;:-")
                 return {
                     "intent": "activity",
@@ -187,18 +317,53 @@ def _detect_reminder_keywords(text: str) -> dict | None:
     schedule_date = None
     frequency = "daily"
     
-    # Match "DD de MES" or "MES DD"
-    months = {"enero": "01", "febrero": "02", "marzo": "03", "abril": "04",
-              "mayo": "05", "junio": "06", "julio": "07", "agosto": "08",
-              "septiembre": "09", "octubre": "10", "noviembre": "11", "diciembre": "12"}
+    # Resolve relative dates: "hoy", "mañana", "este miércoles", etc.
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    now = datetime.now(ZoneInfo("America/Santiago"))
+    today = now.date()
     
-    for month_name, month_num in months.items():
-        date_match = re.search(rf'(\d{{1,2}})\s+de\s+{month_name}', lower)
-        if date_match:
-            day = int(date_match.group(1))
-            schedule_date = f"2026-{month_num}-{day:02d}"
-            frequency = "once"
-            break
+    DAY_MAP = {
+        "lunes": 0, "martes": 1, "miércoles": 2, "miercoles": 2,
+        "jueves": 3, "viernes": 4, "sábado": 5, "sabado": 5, "domingo": 6,
+    }
+
+    if "hoy" in lower:
+        schedule_date = today.isoformat()
+        frequency = "once"
+    elif "mañana" in lower or "manana" in lower:
+        schedule_date = (today + timedelta(days=1)).isoformat()
+        frequency = "once"
+    elif "pasado mañana" in lower or "pasado manana" in lower:
+        schedule_date = (today + timedelta(days=2)).isoformat()
+        frequency = "once"
+    else:
+        # Check "este [día]" or just day name
+        for day_name, day_num in DAY_MAP.items():
+            if day_name in lower:
+                # Calculate next occurrence of this day (or today if it's today)
+                days_ahead = day_num - today.weekday()
+                if days_ahead < 0:
+                    days_ahead += 7
+                # If days_ahead == 0, it means today (e.g., "este miércoles" on a Wednesday)
+                target_date = today + timedelta(days=days_ahead)
+                schedule_date = target_date.isoformat()
+                frequency = "once"
+                break
+
+    # Match "DD de MES" for explicit dates
+    if not schedule_date:
+        months = {"enero": "01", "febrero": "02", "marzo": "03", "abril": "04",
+                  "mayo": "05", "junio": "06", "julio": "07", "agosto": "08",
+                  "septiembre": "09", "octubre": "10", "noviembre": "11", "diciembre": "12"}
+        
+        for month_name, month_num in months.items():
+            date_match = re.search(rf'(\d{{1,2}})\s+de\s+{month_name}', lower)
+            if date_match:
+                day = int(date_match.group(1))
+                schedule_date = f"{now.year}-{month_num}-{day:02d}"
+                frequency = "once"
+                break
 
     # Extract message (remove trigger word, time, and date parts)
     message = lower
@@ -210,6 +375,7 @@ def _detect_reminder_keywords(text: str) -> dict | None:
     # Remove date patterns
     message = re.sub(r'(el\s+)?(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)', '', message)
     message = re.sub(r'\d{1,2}\s+de\s+\w+', '', message)
+    message = re.sub(r'(hoy|mañana|manana|pasado mañana|este|esta)', '', message)
     # Remove filler words
     message = re.sub(r'\b(que|de|a las|tengo que|hay que|debo)\b', '', message)
     message = message.strip(" .,;:-")
@@ -277,6 +443,19 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
             )
 
         import json as json_mod
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+
+        # Use user's timezone for the timestamp
+        try:
+            user_tz = ZoneInfo(user.timezone or "America/Santiago")
+        except Exception:
+            user_tz = ZoneInfo("America/Santiago")
+        
+        # Resolve when from the original text (keyword detection)
+        user_now = datetime.now(user_tz).replace(tzinfo=None)
+        when_detected = _detect_when_keywords(text)
+        activity_time = _resolve_when(when_detected, user_now)
 
         activity = Activity(
             user_id=user.id,
@@ -286,6 +465,7 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
             distance_km=activity_data.distance_km,
             calories=calories,
             sets_data=json_mod.dumps(activity_data.sets) if activity_data.sets else None,
+            timestamp=activity_time,
         )
         db.add(activity)
         await db.flush()
@@ -334,6 +514,10 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
             if activity_data.duration_minutes: msg += f" ({activity_data.duration_minutes} min)"
             msg += "\n📊 ¡Sumado a tu racha!"
 
+        # Show when it was registered if not "now"
+        if when_detected and when_detected != "now":
+            msg += f"\n🕐 Registrado: {activity_time.strftime('%d/%m %H:%M')}"
+
         # Check goal progress
         goal_msg = await _check_goal_progress(user.id, activity_data.activity_type, db)
         if goal_msg:
@@ -349,11 +533,26 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
 
         if reminder_data.action == "create":
             schedule = reminder_data.schedule or "09:00"
+            msg_text = reminder_data.message or "actividad"
+
+            # Prevent duplicates: check if same reminder already exists
+            existing = await db.execute(
+                select(Reminder).where(
+                    Reminder.user_id == user.id,
+                    Reminder.message == msg_text,
+                    Reminder.schedule == schedule,
+                    Reminder.active == True,
+                )
+            )
+            if existing.scalar_one_or_none():
+                await _send(chat_id, f"⏰ Ya tienes ese recordatorio: *{msg_text}* a las {schedule}")
+                return
+
             r = Reminder(
                 user_id=user.id,
                 schedule=schedule,
                 frequency=reminder_data.frequency,
-                message=reminder_data.message or "actividad",
+                message=msg_text,
                 schedule_days=reminder_data.schedule_days,
                 schedule_date=reminder_data.schedule_date,
                 active=True,
@@ -361,7 +560,6 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
             db.add(r)
             await db.flush()
 
-            # Build human-readable schedule description
             freq_text = _format_frequency(r)
             await _send(chat_id, f"⏰ Recordatorio creado!\n📌 *{r.message}*\n🕐 {schedule} — {freq_text}")
 
