@@ -193,6 +193,103 @@ def _resolve_when(when: str | None, user_now) -> 'datetime':
     return user_now
 
 
+def _detect_goal_keywords(text: str) -> dict | None:
+    """
+    Detect goal/meta intent from keywords.
+    Triggers on: "meta", "quiero", "objetivo" + activity + frequency.
+    """
+    import re
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    lower = text.lower().strip()
+
+    # Must contain a goal trigger word
+    triggers = ["meta", "quiero", "objetivo", "mi meta", "propósito", "proposito"]
+    if not any(t in lower for t in triggers):
+        return None
+
+    # Don't trigger if it's a challenge (multiple activities)
+    # Check if there are commas or " y " separating multiple activities
+    parts = re.split(r'\s*[,]\s*|\s+y\s+', lower)
+    activity_parts = [p for p in parts if len(p.strip()) > 3]
+    if len(activity_parts) > 2:
+        return None  # Let challenge detector handle it
+
+    # Extract frequency
+    target_count = 1
+    period = "weekly"
+
+    freq_match = re.search(r'(\d+)\s*(?:veces?\s*(?:por|a la|la)\s*semana|x\s*semana)', lower)
+    if freq_match:
+        target_count = int(freq_match.group(1))
+        period = "weekly"
+    elif re.search(r'todos\s*los\s*d[ií]as|diario|cada\s*d[ií]a', lower):
+        target_count = 1
+        period = "daily"
+    elif re.search(r'(\d+)\s*(?:veces?\s*(?:por|al)\s*mes)', lower):
+        m = re.search(r'(\d+)\s*(?:veces?\s*(?:por|al)\s*mes)', lower)
+        target_count = int(m.group(1))
+        period = "monthly"
+    else:
+        # "2 veces" without "por semana" → assume weekly
+        simple_freq = re.search(r'(\d+)\s*veces?', lower)
+        if simple_freq:
+            target_count = int(simple_freq.group(1))
+            period = "weekly"
+
+    # Extract duration/ends_at
+    ends_at = None
+    now = datetime.now(ZoneInfo("America/Santiago"))
+
+    days_match = re.search(r'(\d+)\s*d[ií]as', lower)
+    months_match = re.search(r'(\d+)\s*mes(?:es)?', lower)
+    week_match = re.search(r'(?:pr[oó]xima|esta|una)\s*semana', lower)
+
+    if days_match:
+        ends_at = (now + timedelta(days=int(days_match.group(1)))).strftime("%Y-%m-%d")
+    elif months_match:
+        ends_at = (now + timedelta(days=int(months_match.group(1)) * 30)).strftime("%Y-%m-%d")
+    elif week_match:
+        ends_at = (now + timedelta(days=7)).strftime("%Y-%m-%d")
+
+    # Extract activity type
+    activity_text = lower
+    for t in triggers:
+        activity_text = activity_text.replace(t, "")
+    activity_text = re.sub(r'\d+\s*(?:veces?\s*(?:por|a la|la)\s*semana|x\s*semana)', '', activity_text)
+    activity_text = re.sub(r'\d+\s*veces?', '', activity_text)
+    activity_text = re.sub(r'todos\s*los\s*d[ií]as|diario|cada\s*d[ií]a', '', activity_text)
+    activity_text = re.sub(r'(\d+)\s*(?:d[ií]as|mes(?:es)?)', '', activity_text)
+    activity_text = re.sub(r'(?:pr[oó]xima|esta|una|para la|por|durante)\s*semana', '', activity_text)
+    activity_text = re.sub(r'\b(para|de|hacer|es|la|el|por|durante|mi|mis|:)\b', '', activity_text)
+    activity_text = re.sub(r'\s+', ' ', activity_text).strip(" .,;:-")
+
+    if not activity_text or len(activity_text) < 2:
+        return None
+
+    # Map to activity type
+    activity_map = {
+        "deporte": "gym", "gimnasio": "gym", "gym": "gym", "ejercicio": "gym",
+        "correr": "running", "caminar": "walking", "nadar": "swimming",
+        "meditar": "meditation", "meditación": "meditation",
+        "leer": "reading", "estudiar": "study", "yoga": "yoga",
+    }
+    activity_type = activity_map.get(activity_text, activity_text)
+
+    return {
+        "intent": "goal",
+        "data": {
+            "action": "create",
+            "activity_type": activity_type,
+            "target_count": target_count,
+            "period": period,
+            "description": activity_text.capitalize() + (f" {target_count}x/{period}" if target_count > 1 else " diario" if period == "daily" else ""),
+            "ends_at": ends_at,
+        }
+    }
+
+
 def _detect_challenge_keywords(text: str) -> dict | None:
     """
     Detect challenge/multi-goal intent from keywords.
@@ -421,6 +518,7 @@ def _detect_reminder_keywords(text: str) -> dict | None:
 
     # Try to extract date
     schedule_date = None
+    schedule_days = None
     frequency = "daily"
     
     # Resolve relative dates: "hoy", "mañana", "este miércoles", etc.
@@ -444,18 +542,29 @@ def _detect_reminder_keywords(text: str) -> dict | None:
         schedule_date = (today + timedelta(days=2)).isoformat()
         frequency = "once"
     else:
-        # Check "este [día]" or just day name
-        for day_name, day_num in DAY_MAP.items():
-            if day_name in lower:
-                # Calculate next occurrence of this day (or today if it's today)
-                days_ahead = day_num - today.weekday()
-                if days_ahead < 0:
-                    days_ahead += 7
-                # If days_ahead == 0, it means today (e.g., "este miércoles" on a Wednesday)
-                target_date = today + timedelta(days=days_ahead)
-                schedule_date = target_date.isoformat()
-                frequency = "once"
-                break
+        # Check for RECURRING day patterns: "los lunes", "todos los lunes", "cada lunes"
+        import re as _re
+        recurring_match = _re.search(r'(?:los|todos los|cada)\s+(lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bados?|domingos?)', lower)
+        if recurring_match:
+            matched_day = recurring_match.group(1)
+            # Normalize: remove trailing 's' only for days that end in 'os' (sábados, domingos)
+            if matched_day.endswith('os'):
+                matched_day = matched_day[:-1]  # "sábados" → "sábado"
+            day_num = DAY_MAP.get(matched_day)
+            if day_num is not None:
+                frequency = "specific_days"
+                schedule_days = str(day_num)
+        else:
+            # Check "este [día]" or "el [día]" → one-time
+            for day_name, day_num in DAY_MAP.items():
+                if day_name in lower:
+                    days_ahead = day_num - today.weekday()
+                    if days_ahead < 0:
+                        days_ahead += 7
+                    target_date = today + timedelta(days=days_ahead)
+                    schedule_date = target_date.isoformat()
+                    frequency = "once"
+                    break
 
     # Match "DD de MES" for explicit dates
     if not schedule_date:
@@ -479,7 +588,7 @@ def _detect_reminder_keywords(text: str) -> dict | None:
     message = re.sub(r'\d{1,2}[:.]\d{2}', '', message)
     message = re.sub(r'\d{1,2}\s*(am|pm)', '', message)
     # Remove date patterns
-    message = re.sub(r'(el\s+)?(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)', '', message)
+    message = re.sub(r'(?:los|todos los|cada|el)\s*(?:lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)s?', '', message)
     message = re.sub(r'\d{1,2}\s+de\s+\w+', '', message)
     message = re.sub(r'(hoy|mañana|manana|pasado mañana|este|esta)', '', message)
     # Remove filler words
@@ -496,7 +605,7 @@ def _detect_reminder_keywords(text: str) -> dict | None:
             "message": message,
             "schedule": schedule,
             "frequency": frequency,
-            "schedule_days": None,
+            "schedule_days": schedule_days,
             "schedule_date": schedule_date,
         }
     }
@@ -513,6 +622,9 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     # Quick keyword detection for challenges/multi-goal
     forced_challenge = _detect_challenge_keywords(text)
     
+    # Quick keyword detection for single goals
+    forced_goal = _detect_goal_keywords(text)
+    
     # Quick keyword detection for life activities the LLM might reject
     forced_activity = _detect_life_keywords(text)
 
@@ -522,6 +634,8 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
             response = forced_reminder
         elif forced_challenge:
             response = forced_challenge
+        elif forced_goal:
+            response = forced_goal
         elif forced_activity:
             response = forced_activity
         else:
@@ -538,6 +652,10 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     elif intent != "challenge" and forced_challenge:
         intent = "challenge"
         response = forced_challenge
+    # Override for goals
+    elif intent not in ("goal", "challenge") and forced_goal:
+        intent = "goal"
+        response = forced_goal
     # Override if LLM rejected a life activity we detected
     elif intent == "chat" and forced_activity:
         intent = "activity"
