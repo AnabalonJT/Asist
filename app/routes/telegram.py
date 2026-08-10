@@ -668,7 +668,7 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
             return
 
         calories = 0
-        if activity_data.category in ("sport", "strength"):
+        if activity_data.category in ("sport", "strength") and user.show_calories:
             calories = calorie_service.estimate(
                 activity_type=activity_data.activity_type,
                 duration_minutes=activity_data.duration_minutes,
@@ -715,7 +715,8 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
             if activity_data.distance_km: parts.append(f"{activity_data.distance_km} km")
             msg = f"✅ {icon} *{name}*"
             if parts: msg += f" ({' · '.join(parts)})"
-            msg += f"\n🔥 {calories} cal"
+            if calories > 0:
+                msg += f"\n🔥 {calories} cal"
 
         elif activity_data.category == "strength":
             name = activity_data.exercise_name or activity_data.activity_type.capitalize()

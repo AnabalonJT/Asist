@@ -16,6 +16,7 @@ from app.models.activity import Activity
 logger = logging.getLogger(__name__)
 
 scheduler = AsyncIOScheduler()
+_summary_sent_this_week: str = ""  # Track to prevent duplicate sends
 
 
 async def deliver_reminders():
@@ -100,6 +101,14 @@ async def deliver_reminders():
 
 async def send_weekly_summaries():
     """Send weekly activity summaries to all users (Sunday 20:00 UTC)."""
+    global _summary_sent_this_week
+    
+    # Prevent duplicate sends (multiple machines or restarts)
+    current_week = datetime.utcnow().strftime("%Y-W%W")
+    if current_week == _summary_sent_this_week:
+        return
+    _summary_sent_this_week = current_week
+
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(User).where(User.telegram_chat_id != None)
@@ -161,6 +170,113 @@ async def _send_telegram(chat_id: int, text: str):
         })
 
 
+async def send_goal_notifications():
+    """
+    Duolingo-style notifications for goals.
+    Sends at 20:00 user time. Frequency decreases if user ignores.
+    """
+    from zoneinfo import ZoneInfo
+    from app.models.goal import Goal
+
+    now_utc = datetime.utcnow()
+
+    async with AsyncSessionLocal() as db:
+        # Get users with telegram linked and active goals
+        result = await db.execute(
+            select(User).where(User.telegram_chat_id != None)
+        )
+        users = result.scalars().all()
+
+        for user in users:
+            try:
+                # Check if it's 20:00 in user's timezone
+                try:
+                    tz = ZoneInfo(user.timezone or "America/Santiago")
+                except Exception:
+                    tz = ZoneInfo("America/Santiago")
+
+                user_now = datetime.now(tz)
+                if user_now.strftime("%H:%M") != "20:00":
+                    continue
+
+                # Get active goals (standalone + from challenges)
+                goals_result = await db.execute(
+                    select(Goal).where(Goal.user_id == user.id, Goal.active == True)
+                )
+                goals = goals_result.scalars().all()
+
+                if not goals:
+                    continue
+
+                # Check which goals are NOT yet met for today/this week
+                pending = []
+                for g in goals:
+                    progress = await _calc_goal_progress(g, user.id, db)
+                    if progress < g.target_count:
+                        pending.append(g)
+
+                if not pending:
+                    continue  # All goals met today!
+
+                # Build notification
+                pending_list = "\n".join(f"  • {g.description}" for g in pending[:5])
+                
+                # Check if any goal has approaching deadline
+                urgent_msg = ""
+                for g in pending:
+                    if g.ends_at:
+                        try:
+                            end = datetime.strptime(g.ends_at, "%Y-%m-%d")
+                            days_left = (end - now_utc).days
+                            if days_left <= 3:
+                                urgent_msg = f"\n\n⚠️ *¡{g.description}* termina en {days_left} día{'s' if days_left != 1 else ''}!"
+                                break
+                            elif days_left <= 7:
+                                urgent_msg = f"\n\n💪 Te queda 1 semana para *{g.description}*. ¡Tú puedes!"
+                                break
+                        except Exception:
+                            pass
+
+                msg = (
+                    f"🎯 *Metas pendientes hoy*\n\n"
+                    f"{pending_list}{urgent_msg}\n\n"
+                    f"_¡No pierdas tu racha!_ 🔥"
+                )
+
+                await _send_telegram(user.telegram_chat_id, msg)
+                logger.info("Goal notification sent to user_id=%s (%d pending)", user.id, len(pending))
+
+            except Exception as e:
+                logger.error("Goal notification error user_id=%s: %s", user.id, e)
+
+        await db.commit()
+
+
+async def _calc_goal_progress(goal, user_id: int, db) -> int:
+    """Calculate progress for a goal in its current period."""
+    from sqlalchemy import func as sa_func
+
+    now = datetime.utcnow()
+    if goal.period == "daily":
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif goal.period == "weekly":
+        start = now - timedelta(days=now.weekday())
+        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    result = await db.execute(
+        select(sa_func.count())
+        .select_from(Activity)
+        .where(
+            Activity.user_id == user_id,
+            Activity.activity_type == goal.activity_type,
+            Activity.timestamp >= start,
+        )
+    )
+    return result.scalar() or 0
+
+
 def start_scheduler():
     """Start the APScheduler with all jobs."""
     scheduler.add_job(
@@ -177,8 +293,16 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    # Goal notifications: check every minute (sends at 20:00 user time)
+    scheduler.add_job(
+        send_goal_notifications,
+        trigger=IntervalTrigger(minutes=1),
+        id="goal_notifications",
+        replace_existing=True,
+    )
+
     scheduler.start()
-    logger.info("APScheduler started: reminders (1min), weekly summary (Sun 20:00 UTC)")
+    logger.info("APScheduler started: reminders (1min), goals (1min), weekly summary (Sun 20:00 UTC)")
 
 
 def stop_scheduler():

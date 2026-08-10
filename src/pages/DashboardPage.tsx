@@ -8,6 +8,7 @@ import { ReminderList } from '../components/ReminderList'
 import { GoalList } from '../components/GoalList'
 import { ActivityFeed } from '../components/ActivityFeed'
 import { ChallengeList } from '../components/ChallengeList'
+import { SettingsCard } from '../components/SettingsCard'
 
 export function DashboardPage() {
   const { user, logout } = useAuth()
@@ -96,6 +97,9 @@ export function DashboardPage() {
 
         {/* Activity Feed with filters */}
         <ActivityFeed />
+
+        {/* Settings */}
+        <SettingsCard />
       </main>
     </div>
   )

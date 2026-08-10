@@ -25,6 +25,7 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     telegram_chat_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, index=True)
     timezone: Mapped[str] = mapped_column(String(50), default="America/Santiago")
+    show_calories: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(default=func.now())
     updated_at: Mapped[datetime] = mapped_column(default=func.now(), onupdate=func.now())
     

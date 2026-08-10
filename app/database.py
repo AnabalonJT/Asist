@@ -97,6 +97,7 @@ async def _migrate_columns() -> None:
         ("activities", "exercise_name", "VARCHAR(100)", None),
         ("activities", "sets_data", "VARCHAR(500)", None),
         ("users", "timezone", "VARCHAR(50)", "'America/Santiago'"),
+        ("users", "show_calories", "BOOLEAN", "true"),
         ("goals", "ends_at", "VARCHAR(20)", None),
         ("goals", "challenge_id", "INTEGER", None),
     ]
