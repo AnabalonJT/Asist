@@ -13,6 +13,10 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   ::selection {
     background: rgba(108, 140, 255, 0.3);
   }

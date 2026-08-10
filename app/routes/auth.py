@@ -110,3 +110,27 @@ async def create_linking_token(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create linking token: {type(e).__name__}: {str(e)}"
         )
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
+@router.put("/change-password")
+async def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Change password for authenticated user."""
+    if not auth_service.verify_password(body.old_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contraseña actual incorrecta")
+
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mínimo 6 caracteres")
+
+    from sqlalchemy import update as sql_update
+    new_hash = auth_service.hash_password(body.new_password)
+    await db.execute(sql_update(User).where(User.id == current_user.id).values(password_hash=new_hash))
+    return {"ok": True, "message": "Contraseña actualizada"}
