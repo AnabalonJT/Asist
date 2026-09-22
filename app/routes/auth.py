@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.middleware.middleware import get_current_user
 from app.models.user import User
-from app.services.auth_service import AuthError, auth_service
+from app.services.auth_service import AuthError, auth_service, send_recovery_code
 
 router = APIRouter()
 
@@ -176,11 +176,18 @@ async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depend
 
     # Only generate a token and send Telegram for a Linked_User (Req 1.1).
     # For nonexistent or unlinked emails, do nothing (Req 1.4, 1.5, 6.3).
+    # Any failure here must still yield the identical generic 200 so we never leak
+    # whether the email exists nor return a 500 (Req 1.6, 4.1, 6.2).
     if user is not None and user.telegram_chat_id is not None:
-        code = await auth_service.create_password_reset_token(db, user)
-        # send_recovery_code swallows its own errors, so the endpoint still returns
-        # the identical generic 200 with the token persisted (Req 1.6, 6.2).
-        await auth_service.send_recovery_code(user.telegram_chat_id, code)
+        try:
+            code = await auth_service.create_password_reset_token(db, user)
+            await send_recovery_code(user.telegram_chat_id, code)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception(
+                "forgot-password: failed to generate/send recovery code for user_id=%s",
+                user.id,
+            )
 
     # ALWAYS return the identical generic response with 200 (Req 1.3, 4.1).
     return GenericResponse(
