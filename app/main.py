@@ -99,7 +99,8 @@ app.add_middleware(
 )
  
 # ── Routes ────────────────────────────────────────────────────────────────────
-from app.routes import auth, telegram, dashboard, activities, reminders, goals, challenges, settings  # noqa: E402
+from app.routes import auth, telegram, dashboard, activities, reminders, goals, challenges, admin  # noqa: E402
+from app.routes import settings as settings_routes  # noqa: E402
  
 app.include_router(auth.router,       prefix="/api/auth",       tags=["Auth"])
 app.include_router(telegram.router,   prefix="/api/telegram",   tags=["Telegram"])
@@ -108,7 +109,8 @@ app.include_router(activities.router, prefix="/api/activities", tags=["Activitie
 app.include_router(reminders.router,  prefix="/api/reminders",  tags=["Reminders"])
 app.include_router(goals.router,      prefix="/api/goals",      tags=["Goals"])
 app.include_router(challenges.router, prefix="/api/challenges", tags=["Challenges"])
-app.include_router(settings.router,   prefix="/api/settings",   tags=["Settings"])
+app.include_router(settings_routes.router, prefix="/api/settings", tags=["Settings"])
+app.include_router(admin.router,      prefix="/api/admin",      tags=["Admin"])
  
  
 @app.get("/health")

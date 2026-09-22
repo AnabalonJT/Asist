@@ -1,11 +1,15 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 
 export function Navbar() {
+  const { user } = useAuth()
+
   const links = [
     { to: '/dashboard', icon: '🏠', label: 'Inicio' },
     { to: '/goals', icon: '🎯', label: 'Metas' },
     { to: '/activities', icon: '📋', label: 'Registros' },
     { to: '/settings', icon: '⚙️', label: 'Config' },
+    ...(user?.is_admin ? [{ to: '/admin', icon: '🛡️', label: 'Admin' }] : []),
   ]
 
   return (
