@@ -16,12 +16,16 @@ from app.models.user import User
 from app.models.activity import Activity
 from app.models.reminder import Reminder
 from app.services.auth_service import AuthError, auth_service
+from app.services.activity_types import normalize_activity_type
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # Deduplication: track processed update_ids to prevent Telegram retries
 _processed_updates: set[int] = set()
+
+
+
 
 
 async def _send(chat_id: int, text: str, parse_mode: str = "Markdown") -> None:
@@ -460,6 +464,7 @@ def _detect_life_keywords(text: str) -> dict | None:
         (["cociné", "hice comida", "preparé comida"], "cocinar"),
         (["limpié", "hice aseo", "ordené", "aspiré", "lavé"], "limpieza"),
         (["me duché", "me bañé"], "higiene"),
+        (["hice mi cama", "hice la cama", "tendí la cama", "tendí mi cama", "arreglé mi cama", "arreglé la cama"], "cama"),
     ]
     
     for keywords, activity_type in life_patterns:
@@ -690,9 +695,10 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
         when_detected = _detect_when_keywords(text)
         activity_time = _resolve_when(when_detected, user_now)
 
+        normalized_activity_type = normalize_activity_type(activity_data.activity_type)
         activity = Activity(
             user_id=user.id,
-            activity_type=activity_data.activity_type,
+            activity_type=normalized_activity_type,
             exercise_name=activity_data.exercise_name,
             duration_minutes=activity_data.duration_minutes,
             distance_km=activity_data.distance_km,
@@ -753,7 +759,7 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
             msg += f"\n🕐 Registrado: {activity_time.strftime('%d/%m %H:%M')}"
 
         # Check goal progress
-        goal_msg = await _check_goal_progress(user.id, activity_data.activity_type, db)
+        goal_msg = await _check_goal_progress(user.id, normalized_activity_type, db)
         if goal_msg:
             msg += f"\n\n{goal_msg}"
 
@@ -867,11 +873,13 @@ def _format_frequency(r) -> str:
 async def _check_goal_progress(user_id: int, activity_type: str, db: AsyncSession) -> str | None:
     """Check if user has a goal for this activity type and return progress message."""
     from app.models.goal import Goal
+    from sqlalchemy import func as sa_func
 
+    normalized = normalize_activity_type(activity_type)
     result = await db.execute(
         select(Goal).where(
             Goal.user_id == user_id,
-            Goal.activity_type == activity_type,
+            sa_func.lower(Goal.activity_type) == normalized,
             Goal.active == True,
         )
     )
@@ -919,7 +927,7 @@ async def _handle_challenge(chat_id: int, user: User, response: dict, db: AsyncS
         goal = Goal(
             user_id=user.id,
             challenge_id=challenge.id,
-            activity_type=g.get("activity_type", "actividad"),
+            activity_type=normalize_activity_type(g.get("activity_type", "actividad")),
             description=g.get("description", g.get("activity_type", "")),
             target_count=g.get("target_count", 1),
             period=g.get("period", "daily"),
@@ -959,7 +967,7 @@ async def _handle_goal(chat_id: int, user: User, response: dict, db: AsyncSessio
 
         goal = Goal(
             user_id=user.id,
-            activity_type=goal_data.activity_type,
+            activity_type=normalize_activity_type(goal_data.activity_type),
             description=goal_data.description or f"{goal_data.activity_type} {goal_data.target_count}x/{goal_data.period}",
             target_count=goal_data.target_count,
             period=goal_data.period,
@@ -1042,7 +1050,7 @@ async def _get_goal_progress(goal, db: AsyncSession) -> int:
         .select_from(Activity)
         .where(
             Activity.user_id == goal.user_id,
-            Activity.activity_type == goal.activity_type,
+            sa_func.lower(Activity.activity_type) == normalize_activity_type(goal.activity_type),
             Activity.timestamp >= start,
         )
     )

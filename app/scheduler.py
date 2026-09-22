@@ -8,6 +8,7 @@ from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
 
 from app.config import settings
+from app.services.activity_types import normalize_activity_type
 from app.database import AsyncSessionLocal
 from app.models.reminder import Reminder
 from app.models.user import User
@@ -270,7 +271,7 @@ async def _calc_goal_progress(goal, user_id: int, db) -> int:
         .select_from(Activity)
         .where(
             Activity.user_id == user_id,
-            Activity.activity_type == goal.activity_type,
+            sa_func.lower(Activity.activity_type) == normalize_activity_type(goal.activity_type),
             Activity.timestamp >= start,
         )
     )

@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.services.activity_types import normalize_activity_type
 from app.middleware.middleware import get_current_user
 from app.models.user import User
 from app.models.goal import Goal
@@ -119,7 +120,7 @@ async def _calc_progress(goal: Goal, user_id: int, db: AsyncSession) -> int:
         .select_from(Activity)
         .where(
             Activity.user_id == user_id,
-            Activity.activity_type == goal.activity_type,
+            func.lower(Activity.activity_type) == normalize_activity_type(goal.activity_type),
             Activity.timestamp >= start,
         )
     )
