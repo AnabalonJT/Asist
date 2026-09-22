@@ -70,7 +70,7 @@ async def init_db() -> None:
     """
     async with engine.begin() as conn:
         # Import all models to register them with Base.metadata
-        from app.models import user, activity, reminder, linking_token, calorie_formula, goal, challenge  # noqa: F401
+        from app.models import user, activity, reminder, linking_token, password_reset_token, calorie_formula, goal, challenge  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
 
     # Add missing columns to existing tables (create_all doesn't do ALTER TABLE)

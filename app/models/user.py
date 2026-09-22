@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.activity import Activity
     from app.models.reminder import Reminder
     from app.models.linking_token import LinkingToken
+    from app.models.password_reset_token import PasswordResetToken
     from app.models.goal import Goal
     from app.models.challenge import Challenge
 
@@ -33,5 +34,6 @@ class User(Base):
     activities: Mapped[list["Activity"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     reminders: Mapped[list["Reminder"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     linking_tokens: Mapped[list["LinkingToken"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     goals: Mapped[list["Goal"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     challenges: Mapped[list["Challenge"]] = relationship(back_populates="user", cascade="all, delete-orphan")

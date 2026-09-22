@@ -51,6 +51,20 @@ class LinkingTokenResponse(BaseModel):
     expires_at: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str
+
+
+class GenericResponse(BaseModel):
+    message: str
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -134,3 +148,66 @@ async def change_password(
     new_hash = auth_service.hash_password(body.new_password)
     await db.execute(sql_update(User).where(User.id == current_user.id).values(password_hash=new_hash))
     return {"ok": True, "message": "Contraseña actualizada"}
+
+
+# ── Password recovery endpoints ────────────────────────────────────────────────
+
+@router.post("/forgot-password", response_model=GenericResponse)
+async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Request a password recovery code delivered via Telegram.
+
+    Always returns the identical generic 200 response, regardless of whether the
+    email belongs to a linked user, an unlinked user, or no user, to avoid account
+    enumeration (Req 1.3, 4.1). Invalid email format yields 422 automatically via
+    EmailStr (Req 1.7).
+    """
+    from sqlalchemy import select
+
+    # Resolve user by email (may be None).
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+
+    # Rate limit check — no token generated, no Telegram sent when limited (Req 5.1, 5.2).
+    if await auth_service.is_rate_limited(db, user):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Demasiadas solicitudes. Intenta de nuevo más tarde.",
+        )
+
+    # Only generate a token and send Telegram for a Linked_User (Req 1.1).
+    # For nonexistent or unlinked emails, do nothing (Req 1.4, 1.5, 6.3).
+    if user is not None and user.telegram_chat_id is not None:
+        code = await auth_service.create_password_reset_token(db, user)
+        # send_recovery_code swallows its own errors, so the endpoint still returns
+        # the identical generic 200 with the token persisted (Req 1.6, 6.2).
+        await auth_service.send_recovery_code(user.telegram_chat_id, code)
+
+    # ALWAYS return the identical generic response with 200 (Req 1.3, 4.1).
+    return GenericResponse(
+        message="Si la cuenta existe y tiene Telegram vinculado, recibirás un código."
+    )
+
+
+@router.post("/reset-password", response_model=GenericResponse)
+async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Reset a password using a recovery code.
+
+    Returns an identical generic 400 for all enumeration-sensitive rejection reasons
+    (no user, no match, used, expired) and a distinct 400 for out-of-range length
+    (Req 3.5, 3.6, 3.7, 3.8, 4.2).
+    """
+    try:
+        await auth_service.validate_and_consume_reset(
+            db, body.email, body.code, body.new_password
+        )
+        return GenericResponse(message="Contraseña actualizada correctamente.")
+    except AuthError as e:
+        if str(e) == "length":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La contraseña debe tener entre 6 y 128 caracteres.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Código inválido o expirado.",
+        )
