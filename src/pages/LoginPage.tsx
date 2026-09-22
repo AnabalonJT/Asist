@@ -79,6 +79,12 @@ export function LoginPage() {
         </div>
 
         <p className="text-center text-text-secondary text-sm mt-4">
+          <Link to="/forgot-password" className="text-accent hover:text-blue-400 transition-colors">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </p>
+
+        <p className="text-center text-text-secondary text-sm mt-2">
           ¿No tienes cuenta?{' '}
           <Link to="/register" className="text-accent hover:text-blue-400 transition-colors">
             Regístrate
