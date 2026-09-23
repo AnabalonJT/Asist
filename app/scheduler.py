@@ -278,6 +278,60 @@ async def _calc_goal_progress(goal, user_id: int, db) -> int:
     return result.scalar() or 0
 
 
+def _expected_periods(start_date, end_date, period: str) -> int:
+    """Number of goal periods spanning [start_date, end_date] inclusive.
+
+    daily   -> number of days (inclusive)
+    weekly  -> number of ISO weeks (ceil of days / 7)
+    monthly -> number of calendar months touched (inclusive)
+    Returns at least 1 for any non-empty span. Pure function.
+    """
+    if end_date < start_date:
+        return 0
+    span_days = (end_date - start_date).days + 1  # inclusive
+    p = (period or "daily").lower()
+    if p == "weekly":
+        return max(1, -(-span_days // 7))  # ceil division
+    if p == "monthly":
+        months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
+        return max(1, months)
+    # default daily
+    return max(1, span_days)
+
+
+def compute_lifetime_completion(completed: int, target_count: int, start_date, end_date, period: str) -> int:
+    """Completion percentage over a goal's whole lifetime (0..100). Pure function.
+
+    expected = periods_in_span * target_count_per_period
+    pct      = round(min(completed / expected, 1) * 100)
+    If expected <= 0, returns 0.
+    """
+    target = target_count or 1
+    periods = _expected_periods(start_date, end_date, period)
+    expected = periods * target
+    if expected <= 0:
+        return 0
+    ratio = min(completed / expected, 1.0)
+    return round(ratio * 100)
+
+
+async def _count_activities_in_range(db, user_id: int, activity_type: str, start_dt, end_dt) -> int:
+    """Count a user's activities of a given (normalized) type within [start_dt, end_dt]."""
+    from sqlalchemy import func as sa_func
+
+    result = await db.execute(
+        select(sa_func.count())
+        .select_from(Activity)
+        .where(
+            Activity.user_id == user_id,
+            sa_func.lower(Activity.activity_type) == normalize_activity_type(activity_type),
+            Activity.timestamp >= start_dt,
+            Activity.timestamp <= end_dt,
+        )
+    )
+    return result.scalar() or 0
+
+
 async def close_expired_challenges_and_goals():
     """Close challenges and standalone goals whose ends_at has passed.
 
@@ -288,9 +342,11 @@ async def close_expired_challenges_and_goals():
       4. send a Telegram summary to the user.
 
     Runs every minute but only acts once per entity (guarded by closed_notified),
-    so it never spams. Percentage uses each goal's progress in its current period
-    (consistent with _calc_goal_progress); this is an approximation, not a full
-    historical audit, and is documented as such.
+    so it never spams. Percentage is the LIFETIME completion over the whole span
+    of the challenge/goal: activities of the goal type logged between the start
+    (created_at) and the end date, divided by the expected count (number of goal
+    periods in the span * target_count per period), capped at 100%. For a
+    challenge, the percentage is the average of its goals' lifetime completions.
     """
     from app.models.goal import Goal
     from app.models.challenge import Challenge
@@ -316,15 +372,23 @@ async def close_expired_challenges_and_goals():
             )
             goals = goals_res.scalars().all()
 
-            # Completion % = average of per-goal completion ratios (capped at 100).
+            # Span of the challenge: from its creation date to the end of its end date.
+            start_date = ch.created_at.date() if ch.created_at else end_date
+            start_dt = datetime.combine(start_date, datetime.min.time())
+            end_dt = datetime.combine(end_date, datetime.max.time())
+
+            # Completion % = average of per-goal LIFETIME completion over the span.
             pct = 0
             if goals:
-                ratios = []
+                pcts = []
                 for g in goals:
-                    progress = await _calc_goal_progress(g, ch.user_id, db)
-                    target = g.target_count or 1
-                    ratios.append(min(progress / target, 1.0))
-                pct = round(sum(ratios) / len(ratios) * 100)
+                    completed = await _count_activities_in_range(
+                        db, ch.user_id, g.activity_type, start_dt, end_dt
+                    )
+                    pcts.append(compute_lifetime_completion(
+                        completed, g.target_count, start_date, end_date, g.period
+                    ))
+                pct = round(sum(pcts) / len(pcts))
 
             # Deactivate challenge + its goals.
             ch.active = False
@@ -372,9 +436,17 @@ async def close_expired_challenges_and_goals():
             if end_date is None or end_date >= today:
                 continue
 
-            progress = await _calc_goal_progress(g, g.user_id, db)
+            # Span: from goal creation to the end of its end date.
+            start_date = g.created_at.date() if g.created_at else end_date
+            start_dt = datetime.combine(start_date, datetime.min.time())
+            end_dt = datetime.combine(end_date, datetime.max.time())
+
+            completed = await _count_activities_in_range(
+                db, g.user_id, g.activity_type, start_dt, end_dt
+            )
             target = g.target_count or 1
-            pct = round(min(progress / target, 1.0) * 100)
+            expected = _expected_periods(start_date, end_date, g.period) * target
+            pct = compute_lifetime_completion(completed, g.target_count, start_date, end_date, g.period)
 
             g.active = False
             g.closed_notified = True
@@ -385,10 +457,10 @@ async def close_expired_challenges_and_goals():
                 await _send_telegram(
                     chat_id,
                     f"{emoji} *Meta finalizada: {g.description}*\n\n"
-                    f"📊 Cumplimiento: *{pct}%* ({progress}/{target})\n"
+                    f"📊 Cumplimiento: *{pct}%* ({completed}/{expected})\n"
                     f"{'¡Meta cumplida! 🏆' if pct >= 100 else 'Cada paso suma, sigue adelante.'}",
                 )
-            logger.info("Closed standalone goal id=%s pct=%s", g.id, pct)
+            logger.info("Closed standalone goal id=%s pct=%s completed=%s expected=%s", g.id, pct, completed, expected)
 
         await db.commit()
 

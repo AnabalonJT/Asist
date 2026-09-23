@@ -47,3 +47,62 @@ class TestSchedulerWiring:
         # The close-expired callable must exist and be scheduled.
         from app.scheduler import close_expired_challenges_and_goals
         assert callable(close_expired_challenges_and_goals)
+
+
+from datetime import date
+from app.scheduler import _expected_periods, compute_lifetime_completion
+
+
+class TestExpectedPeriods:
+    def test_daily_inclusive_days(self):
+        # Jan 1 to Jan 10 inclusive = 10 days.
+        assert _expected_periods(date(2026, 1, 1), date(2026, 1, 10), "daily") == 10
+
+    def test_daily_single_day(self):
+        assert _expected_periods(date(2026, 1, 1), date(2026, 1, 1), "daily") == 1
+
+    def test_daily_75_days(self):
+        # A "75 días" challenge: Jan 1 .. Mar 16 inclusive = 75 days.
+        assert _expected_periods(date(2026, 1, 1), date(2026, 3, 16), "daily") == 75
+
+    def test_weekly_ceils(self):
+        # 28 days -> 4 weeks; 29 days -> 5 weeks (ceil).
+        assert _expected_periods(date(2026, 1, 1), date(2026, 1, 28), "weekly") == 4
+        assert _expected_periods(date(2026, 1, 1), date(2026, 1, 29), "weekly") == 5
+
+    def test_monthly_inclusive_months(self):
+        assert _expected_periods(date(2026, 1, 15), date(2026, 3, 10), "monthly") == 3
+        assert _expected_periods(date(2026, 1, 1), date(2026, 1, 31), "monthly") == 1
+
+    def test_end_before_start_is_zero(self):
+        assert _expected_periods(date(2026, 2, 1), date(2026, 1, 1), "daily") == 0
+
+    def test_unknown_period_defaults_daily(self):
+        assert _expected_periods(date(2026, 1, 1), date(2026, 1, 5), "weird") == 5
+
+
+class TestLifetimeCompletion:
+    def test_daily_partial(self):
+        # 75 daily target 1, 50 done -> 67%.
+        assert compute_lifetime_completion(50, 1, date(2026, 1, 1), date(2026, 3, 16), "daily") == 67
+
+    def test_weekly_full(self):
+        # 4 weeks x 3/week = 12 expected, 12 done -> 100%.
+        assert compute_lifetime_completion(12, 3, date(2026, 1, 1), date(2026, 1, 28), "weekly") == 100
+
+    def test_weekly_half(self):
+        assert compute_lifetime_completion(6, 3, date(2026, 1, 1), date(2026, 1, 28), "weekly") == 50
+
+    def test_capped_at_100(self):
+        assert compute_lifetime_completion(999, 1, date(2026, 1, 1), date(2026, 1, 10), "daily") == 100
+
+    def test_zero_done(self):
+        assert compute_lifetime_completion(0, 1, date(2026, 1, 1), date(2026, 1, 10), "daily") == 0
+
+    def test_none_target_defaults_one(self):
+        # target_count None -> treated as 1.
+        assert compute_lifetime_completion(5, None, date(2026, 1, 1), date(2026, 1, 10), "daily") == 50
+
+    def test_empty_span_zero(self):
+        # end before start -> expected 0 -> 0%.
+        assert compute_lifetime_completion(3, 1, date(2026, 2, 1), date(2026, 1, 1), "daily") == 0
