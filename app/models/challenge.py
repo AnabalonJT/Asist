@@ -27,6 +27,7 @@ class Challenge(Base):
     name: Mapped[str] = mapped_column(String(200))  # "75 días de disciplina"
     ends_at: Mapped[str | None] = mapped_column(String(20))  # "2026-09-22" or null
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    closed_notified: Mapped[bool] = mapped_column(Boolean, default=False)  # end-of-challenge summary sent
     created_at: Mapped[datetime] = mapped_column(default=func.now())
 
     # Relationships

@@ -28,6 +28,7 @@ class Goal(Base):
     period: Mapped[str] = mapped_column(String(20), default="weekly")
     ends_at: Mapped[str | None] = mapped_column(String(20))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    closed_notified: Mapped[bool] = mapped_column(Boolean, default=False)  # end-of-goal summary sent
     created_at: Mapped[datetime] = mapped_column(default=func.now())
 
     # Relationships

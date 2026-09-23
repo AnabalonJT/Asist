@@ -921,8 +921,12 @@ async def _handle_challenge(chat_id: int, user: User, response: dict, db: AsyncS
     db.add(challenge)
     await db.flush()
 
-    # Create goals linked to this challenge
+    # Create goals linked to this challenge, plus a daily reminder per goal linked
+    # to the challenge so they can be auto-deactivated when the challenge ends.
+    from app.models.reminder import Reminder
+
     goal_lines = []
+    reminder_count = 0
     for g in goals_data:
         goal = Goal(
             user_id=user.id,
@@ -938,14 +942,31 @@ async def _handle_challenge(chat_id: int, user: User, response: dict, db: AsyncS
         freq = {"daily": "diario", "weekly": "semanal", "monthly": "mensual"}.get(goal.period, goal.period)
         goal_lines.append(f"  • {goal.description} ({goal.target_count}x {freq})")
 
+        # Linked daily reminder at 20:00 (user tz). Auto-off when the challenge closes.
+        reminder = Reminder(
+            user_id=user.id,
+            schedule="20:00",
+            frequency="daily",
+            message=f"{challenge.name}: {goal.description}",
+            active=True,
+            challenge_id=challenge.id,
+        )
+        db.add(reminder)
+        reminder_count += 1
+
     await db.flush()
 
     ends_text = f"\n📅 Hasta: {ends_at}" if ends_at else "\n♾️ Sin fecha límite"
     goals_list = "\n".join(goal_lines)
+    reminder_note = (
+        f"\n\n🔔 Creé {reminder_count} recordatorio(s) diario(s) a las 20:00 para este desafío "
+        f"(se apagan solos cuando termine)."
+        if reminder_count else ""
+    )
 
     await _send(chat_id,
         f"🏆 *Desafío creado: {name}*{ends_text}\n\n"
-        f"📋 Metas incluidas:\n{goals_list}\n\n"
+        f"📋 Metas incluidas:\n{goals_list}{reminder_note}\n\n"
         f"_Registra tus actividades y verás el progreso de cada meta_"
     )
 

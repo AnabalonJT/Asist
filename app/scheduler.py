@@ -278,6 +278,137 @@ async def _calc_goal_progress(goal, user_id: int, db) -> int:
     return result.scalar() or 0
 
 
+async def close_expired_challenges_and_goals():
+    """Close challenges and standalone goals whose ends_at has passed.
+
+    For each newly-expired challenge/goal that has not been notified yet:
+      1. compute a completion percentage,
+      2. deactivate it (active=False) and mark closed_notified=True,
+      3. deactivate any reminders linked to a closed challenge (challenge_id),
+      4. send a Telegram summary to the user.
+
+    Runs every minute but only acts once per entity (guarded by closed_notified),
+    so it never spams. Percentage uses each goal's progress in its current period
+    (consistent with _calc_goal_progress); this is an approximation, not a full
+    historical audit, and is documented as such.
+    """
+    from app.models.goal import Goal
+    from app.models.challenge import Challenge
+
+    today = datetime.utcnow().date()
+
+    async with AsyncSessionLocal() as db:
+        # ── Challenges: expired, still active, not yet notified ──────────────
+        ch_result = await db.execute(
+            select(Challenge).where(
+                Challenge.active == True,
+                Challenge.closed_notified == False,
+                Challenge.ends_at != None,
+            )
+        )
+        for ch in ch_result.scalars().all():
+            end_date = _parse_end_date(ch.ends_at)
+            if end_date is None or end_date >= today:
+                continue  # no valid end date, or not expired yet
+
+            goals_res = await db.execute(
+                select(Goal).where(Goal.challenge_id == ch.id)
+            )
+            goals = goals_res.scalars().all()
+
+            # Completion % = average of per-goal completion ratios (capped at 100).
+            pct = 0
+            if goals:
+                ratios = []
+                for g in goals:
+                    progress = await _calc_goal_progress(g, ch.user_id, db)
+                    target = g.target_count or 1
+                    ratios.append(min(progress / target, 1.0))
+                pct = round(sum(ratios) / len(ratios) * 100)
+
+            # Deactivate challenge + its goals.
+            ch.active = False
+            ch.closed_notified = True
+            for g in goals:
+                g.active = False
+                g.closed_notified = True
+
+            # Deactivate reminders linked to this challenge.
+            rem_res = await db.execute(
+                select(Reminder).where(Reminder.challenge_id == ch.id, Reminder.active == True)
+            )
+            linked_reminders = rem_res.scalars().all()
+            for r in linked_reminders:
+                r.active = False
+
+            # Notify the user.
+            chat_id = await _get_chat_id(db, ch.user_id)
+            if chat_id:
+                emoji = "🎉" if pct >= 100 else ("💪" if pct >= 50 else "📊")
+                reminders_note = (
+                    f"\n🔕 Desactivé {len(linked_reminders)} recordatorio(s) de este desafío."
+                    if linked_reminders else ""
+                )
+                await _send_telegram(
+                    chat_id,
+                    f"{emoji} *Desafío finalizado: {ch.name}*\n\n"
+                    f"📊 Cumplimiento: *{pct}%*\n"
+                    f"{'¡Lo lograste! 🏆' if pct >= 100 else 'Sigue así, cada intento cuenta.'}"
+                    f"{reminders_note}",
+                )
+            logger.info("Closed challenge id=%s pct=%s reminders_off=%s", ch.id, pct, len(linked_reminders))
+
+        # ── Standalone goals (no challenge): expired, active, not notified ────
+        g_result = await db.execute(
+            select(Goal).where(
+                Goal.active == True,
+                Goal.closed_notified == False,
+                Goal.challenge_id == None,
+                Goal.ends_at != None,
+            )
+        )
+        for g in g_result.scalars().all():
+            end_date = _parse_end_date(g.ends_at)
+            if end_date is None or end_date >= today:
+                continue
+
+            progress = await _calc_goal_progress(g, g.user_id, db)
+            target = g.target_count or 1
+            pct = round(min(progress / target, 1.0) * 100)
+
+            g.active = False
+            g.closed_notified = True
+
+            chat_id = await _get_chat_id(db, g.user_id)
+            if chat_id:
+                emoji = "🎉" if pct >= 100 else ("💪" if pct >= 50 else "📊")
+                await _send_telegram(
+                    chat_id,
+                    f"{emoji} *Meta finalizada: {g.description}*\n\n"
+                    f"📊 Cumplimiento: *{pct}%* ({progress}/{target})\n"
+                    f"{'¡Meta cumplida! 🏆' if pct >= 100 else 'Cada paso suma, sigue adelante.'}",
+                )
+            logger.info("Closed standalone goal id=%s pct=%s", g.id, pct)
+
+        await db.commit()
+
+
+def _parse_end_date(ends_at: str | None):
+    """Parse an ISO 'YYYY-MM-DD' end date string to a date, or None if invalid."""
+    if not ends_at:
+        return None
+    try:
+        return datetime.strptime(ends_at.strip()[:10], "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+
+
+async def _get_chat_id(db, user_id: int):
+    """Return the user's telegram_chat_id, or None."""
+    res = await db.execute(select(User.telegram_chat_id).where(User.id == user_id))
+    return res.scalar_one_or_none()
+
+
 def start_scheduler():
     """Start the APScheduler with all jobs."""
     scheduler.add_job(
@@ -302,8 +433,16 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    # Close expired challenges/goals: check every minute, acts once per entity.
+    scheduler.add_job(
+        close_expired_challenges_and_goals,
+        trigger=IntervalTrigger(minutes=1),
+        id="close_expired",
+        replace_existing=True,
+    )
+
     scheduler.start()
-    logger.info("APScheduler started: reminders (1min), goals (1min), weekly summary (Sun 20:00 UTC)")
+    logger.info("APScheduler started: reminders (1min), goals (1min), close-expired (1min), weekly summary (Sun 20:00 UTC)")
 
 
 def stop_scheduler():

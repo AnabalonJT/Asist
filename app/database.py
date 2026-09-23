@@ -100,6 +100,9 @@ async def _migrate_columns() -> None:
         ("users", "show_calories", "BOOLEAN", "true"),
         ("goals", "ends_at", "VARCHAR(20)", None),
         ("goals", "challenge_id", "INTEGER", None),
+        ("goals", "closed_notified", "BOOLEAN", "false"),
+        ("challenges", "closed_notified", "BOOLEAN", "false"),
+        ("reminders", "challenge_id", "INTEGER", None),
     ]
 
     async with engine.begin() as conn:
