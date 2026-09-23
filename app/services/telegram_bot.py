@@ -105,13 +105,26 @@ async def _message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     from app.models.activity import Activity
     from app.models.reminder import Reminder
 
+    from app.routes.telegram import _detect_fitness_keywords
+
+    # Quick keyword detection for fitness/workout routines (LLM fallback + override)
+    forced_fitness = _detect_fitness_keywords(text)
+
     response = await interpret_message(text)
 
     if not response:
-        await _send_chat_response(update, user)
-        return
+        if forced_fitness:
+            response = forced_fitness
+        else:
+            await _send_chat_response(update, user)
+            return
 
     intent = response.get("intent", "chat")
+
+    # Override for fitness routines (only if not already a recognized intent here)
+    if intent not in ("activity", "reminder", "timezone", "fitness") and forced_fitness:
+        intent = "fitness"
+        response = forced_fitness
 
     if intent == "activity":
         await _handle_activity(update, user, response, calorie_service, Activity)
@@ -119,6 +132,8 @@ async def _message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await _handle_reminder(update, user, response, Reminder)
     elif intent == "timezone":
         await _handle_timezone(update, user, response)
+    elif intent == "fitness":
+        await _handle_fitness(update, user, response)
     else:
         await _send_chat_response(update, user)
 
@@ -329,6 +344,86 @@ async def _handle_timezone(update, user, response):
         "Tus registros y recordatorios usarán esta zona.",
         parse_mode="Markdown"
     )
+
+
+def _format_workout_plan(plan) -> str:
+    """Format a WorkoutPlan into a Spanish, human-readable message."""
+    lines = ["🏋️ *Tu rutina de entrenamiento:*\n"]
+    for day in plan.structure_list():
+        day_name = day.get("day", "Día")
+        lines.append(f"\n📅 *{day_name}*")
+        for ex in day.get("exercises", []):
+            name = ex.get("name", "Ejercicio")
+            sets = ex.get("sets")
+            reps = ex.get("reps")
+            duration = ex.get("duration_seconds")
+            rest = ex.get("rest_seconds")
+            if sets is not None and reps is not None:
+                detail = f"{sets}×{reps}"
+            elif duration is not None:
+                detail = f"{duration}s"
+            else:
+                detail = ""
+            line = f"  • {name}"
+            if detail:
+                line += f" — {detail}"
+            if rest is not None:
+                line += f" (descanso {rest}s)"
+            lines.append(line)
+    return "\n".join(lines)
+
+
+async def _handle_fitness(update, user, response):
+    """Handle fitness intent: generate a new workout plan or view the active one."""
+    from app.services import fitness_service
+
+    data = response.get("data", {}) or {}
+    action = data.get("action", "generate")
+
+    overrides: dict = {}
+    if data.get("goal_type") is not None:
+        overrides["goal_type"] = data.get("goal_type")
+    if data.get("equipment") is not None:
+        overrides["equipment"] = data.get("equipment")
+    if data.get("days_per_week") is not None:
+        overrides["days_per_week"] = data.get("days_per_week")
+
+    if action == "view":
+        async with AsyncSessionLocal() as db:
+            plan = await fitness_service.get_active_plan(db, user.id)
+        if plan is not None:
+            await update.message.reply_text(
+                _format_workout_plan(plan), parse_mode="Markdown"
+            )
+        else:
+            await update.message.reply_text(
+                "No tienes una rutina activa. Escríbeme por ejemplo: "
+                "\"genérame una rutina para ganar músculo 4 días\"."
+            )
+        return
+
+    # action == "generate"
+    try:
+        async with AsyncSessionLocal() as db:
+            plan = await fitness_service.generate_workout_plan(
+                db, user.id, overrides or None
+            )
+            await db.commit()
+    except fitness_service.GoalRequiredError as e:
+        await update.message.reply_text(str(e) + " Puedes hacerlo en la web.")
+        return
+    except fitness_service.LLMError:
+        await update.message.reply_text(
+            "No pude generar tu rutina ahora. Intenta de nuevo en un momento."
+        )
+        return
+    except fitness_service.EquipmentError as e:
+        await update.message.reply_text(str(e))
+        return
+
+    msg = _format_workout_plan(plan)
+    msg += f"\n\n_{fitness_service.MEDICAL_DISCLAIMER}_"
+    await update.message.reply_text(msg, parse_mode="Markdown")
 
 
 async def _send_chat_response(update, user):

@@ -162,6 +162,22 @@ Ejemplos de desafíos:
 
 REGLA: Si el mensaje menciona MÚLTIPLES actividades con una duración compartida (X días, X meses, etc), es un "challenge". Si es solo UNA actividad, es un "goal".
 
+## Si intent="fitness" (el usuario pide o consulta su rutina de entrenamiento):
+{
+  "intent": "fitness",
+  "data": {
+    "action": "generate" | "view",
+    "goal_type": "gain_muscle" | "lose_weight" | "maintain" | null,
+    "equipment": ["..."] o null,
+    "days_per_week": number o null
+  }
+}
+
+Ejemplos de fitness:
+- "genérame una rutina para ganar músculo 4 días" → generate, goal_type="gain_muscle", days_per_week=4
+- "quiero una rutina de entrenamiento" → generate
+- "mi rutina" / "ver mi rutina" → view
+
 Reglas importantes:
 - "Levanté 100kg en press banca" → activity, category="strength", exercise_name="Press Banca", sets=[{"reps":1,"weight_kg":100}]
 - "Hice 4 series de sentadillas con 80kg" → activity, category="strength", exercise_name="Sentadillas", sets=[{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80}]
@@ -321,4 +337,121 @@ async def _call_llm(user_message: str) -> str | None:
         return None
     except Exception as e:
         logger.exception("OpenRouter request failed: %s", e)
+        return None
+
+
+# ── Workout plan generation (Fitness_Coach, Req 5.1, 6.1-6.3) ────────────────
+WORKOUT_SYSTEM_PROMPT = """Eres un entrenador personal. Genera una rutina de entrenamiento en JSON.
+Devuelve SOLO JSON con esta estructura, sin texto adicional:
+{
+  "days": [
+    {
+      "day": "Día 1 - Empuje",
+      "exercises": [
+        {"name": "Press banca", "sets": 4, "reps": 10,
+         "duration_seconds": null, "rest_seconds": 90, "equipment": "banco"}
+      ]
+    }
+  ]
+}
+Reglas:
+- Entre 1 y {days_per_week} días; cada día 1 a 20 ejercicios.
+- Usa ÚNICAMENTE equipo de esta lista disponible: {equipment}.
+- Cada ejercicio define sets(1-20)+reps(1-100) O duration_seconds(1-7200), y rest_seconds(0-3600).
+- Ajusta volumen e intensidad al nivel ({level}) y al objetivo ({goal}).
+- Considera la actividad reciente del usuario: {activity_summary}.
+- Nombres de ejercicio en español, 1 a 100 caracteres."""
+
+
+async def generate_workout_plan(
+    profile: dict,
+    goal: dict,
+    activity_summary: dict,
+    timeout_seconds: float = 60.0,
+) -> dict | None:
+    """Generate a workout plan via OpenRouter.
+
+    Builds the prompt from profile+goal+activity_summary, calls OpenRouter with a
+    60s timeout (reusing the _call_llm pattern), strips markdown code fences and
+    json.loads the result.
+
+    Returns the parsed dict, or None on timeout / HTTP error / empty response /
+    JSONDecodeError.
+    """
+    equipment = profile.get("equipment") or []
+    days_per_week = profile.get("days_per_week")
+    level = profile.get("level")
+    goal_type = goal.get("goal_type")
+    goal_desc = goal.get("performance_target") or goal_type
+
+    system_prompt = WORKOUT_SYSTEM_PROMPT.format(
+        days_per_week=days_per_week,
+        equipment=", ".join(equipment) if equipment else "peso corporal",
+        level=level,
+        goal=goal_desc,
+        activity_summary=json.dumps(activity_summary, ensure_ascii=False),
+    )
+
+    user_message = (
+        "Genera mi rutina de entrenamiento en JSON según mi perfil "
+        f"(nivel {level}, {days_per_week} días/semana, objetivo {goal_desc})."
+    )
+
+    url = f"{settings.openrouter_base_url}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {settings.openrouter_api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": settings.openrouter_model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+        "temperature": 0.2,
+        "max_tokens": 1200,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+            response = await client.post(url, headers=headers, json=payload)
+
+        if response.status_code != 200:
+            logger.error(
+                "OpenRouter workout error %s: %s",
+                response.status_code,
+                response.text[:200],
+            )
+            return None
+
+        data = response.json()
+        choices = data.get("choices", [])
+        if not choices:
+            logger.warning("OpenRouter returned empty choices for workout plan")
+            return None
+
+        content = choices[0].get("message", {}).get("content", "")
+        content = content.strip()
+        if not content:
+            logger.warning("OpenRouter returned empty content for workout plan")
+            return None
+
+        # Strip markdown code fences if present
+        if content.startswith("```"):
+            lines = content.split("\n", 1)
+            content = lines[1] if len(lines) > 1 else ""
+        if content.endswith("```"):
+            content = content.rsplit("```", 1)[0]
+        content = content.strip()
+
+        return json.loads(content)
+
+    except httpx.TimeoutException:
+        logger.warning("OpenRouter workout timeout (%ss)", timeout_seconds)
+        return None
+    except json.JSONDecodeError as e:
+        logger.warning("OpenRouter workout returned non-JSON: %s", e)
+        return None
+    except Exception as e:
+        logger.exception("OpenRouter workout request failed: %s", e)
         return None

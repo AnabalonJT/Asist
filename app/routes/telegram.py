@@ -294,6 +294,55 @@ def _detect_goal_keywords(text: str) -> dict | None:
     }
 
 
+def _detect_fitness_keywords(text: str) -> dict | None:
+    """
+    Detect fitness/workout-routine intent from keywords.
+    Triggers on: "rutina", "entrenamiento", "plan de gym", "genérame una rutina",
+    "mi rutina". Returns a fake LLM fitness response dict or None.
+    """
+    import re
+
+    lower = text.lower().strip()
+
+    triggers = [
+        "rutina", "entrenamiento", "plan de gym", "plan de entrenamiento",
+        "plan de gimnasio", "genérame una rutina", "generame una rutina",
+    ]
+    if not any(t in lower for t in triggers):
+        return None
+
+    # View if the user asks to see/show an existing routine.
+    view_words = ["ver", "mostrar", "muéstrame", "muestrame", "mi rutina", "cuál es mi", "cual es mi"]
+    action = "view" if any(w in lower for w in view_words) else "generate"
+
+    # Heuristic goal type detection.
+    goal_type = None
+    if "ganar músculo" in lower or "ganar musculo" in lower or "músculo" in lower or "musculo" in lower:
+        goal_type = "gain_muscle"
+    elif "adelgazar" in lower or "bajar de peso" in lower or "perder peso" in lower:
+        goal_type = "lose_weight"
+    elif "mantener" in lower:
+        goal_type = "maintain"
+
+    # Heuristic days-per-week detection ("N días").
+    days_per_week = None
+    days_match = re.search(r'(\d+)\s*d[ií]as', lower)
+    if days_match:
+        n = int(days_match.group(1))
+        if 1 <= n <= 7:
+            days_per_week = n
+
+    return {
+        "intent": "fitness",
+        "data": {
+            "action": action,
+            "goal_type": goal_type,
+            "equipment": None,
+            "days_per_week": days_per_week,
+        }
+    }
+
+
 def _detect_challenge_keywords(text: str) -> dict | None:
     """
     Detect challenge/multi-goal intent from keywords.
@@ -633,6 +682,9 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     # Quick keyword detection for life activities the LLM might reject
     forced_activity = _detect_life_keywords(text)
 
+    # Quick keyword detection for fitness/workout routines
+    forced_fitness = _detect_fitness_keywords(text)
+
     response = await interpret_message(text)
     if not response:
         if forced_reminder:
@@ -643,6 +695,8 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
             response = forced_goal
         elif forced_activity:
             response = forced_activity
+        elif forced_fitness:
+            response = forced_fitness
         else:
             await _send_help(chat_id, user)
             return
@@ -665,6 +719,10 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     elif intent == "chat" and forced_activity:
         intent = "activity"
         response = forced_activity
+    # Override for fitness routines (lowest priority; only if not already handled)
+    elif intent not in ("reminder", "challenge", "goal", "activity") and forced_fitness:
+        intent = "fitness"
+        response = forced_fitness
 
     if intent == "activity":
         activity_data = parse_activity(response)
@@ -844,6 +902,9 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     elif intent == "challenge":
         await _handle_challenge(chat_id, user, response, db)
 
+    elif intent == "fitness":
+        await _handle_fitness(chat_id, user, response, db)
+
     else:
         await _send_help(chat_id, user)
 
@@ -895,6 +956,83 @@ async def _check_goal_progress(user_id: int, activity_type: str, db: AsyncSessio
     else:
         bar = _progress_bar(progress, goal.target_count)
         return f"🎯 Meta: {bar} {progress}/{goal.target_count} {period_text}"
+
+
+def _format_workout_plan(plan) -> str:
+    """Format a WorkoutPlan into a Spanish, human-readable message."""
+    lines = ["🏋️ *Tu rutina de entrenamiento:*\n"]
+    for day in plan.structure_list():
+        day_name = day.get("day", "Día")
+        lines.append(f"\n📅 *{day_name}*")
+        for ex in day.get("exercises", []):
+            name = ex.get("name", "Ejercicio")
+            sets = ex.get("sets")
+            reps = ex.get("reps")
+            duration = ex.get("duration_seconds")
+            rest = ex.get("rest_seconds")
+            if sets is not None and reps is not None:
+                detail = f"{sets}×{reps}"
+            elif duration is not None:
+                detail = f"{duration}s"
+            else:
+                detail = ""
+            line = f"  • {name}"
+            if detail:
+                line += f" — {detail}"
+            if rest is not None:
+                line += f" (descanso {rest}s)"
+            lines.append(line)
+    return "\n".join(lines)
+
+
+async def _handle_fitness(chat_id: int, user: User, response: dict, db: AsyncSession) -> None:
+    """Handle fitness intent: generate a new workout plan or view the active one."""
+    from app.services import fitness_service
+
+    data = response.get("data", {}) or {}
+    action = data.get("action", "generate")
+
+    overrides: dict = {}
+    if data.get("goal_type") is not None:
+        overrides["goal_type"] = data.get("goal_type")
+    if data.get("equipment") is not None:
+        overrides["equipment"] = data.get("equipment")
+    if data.get("days_per_week") is not None:
+        overrides["days_per_week"] = data.get("days_per_week")
+
+    if action == "view":
+        plan = await fitness_service.get_active_plan(db, user.id)
+        if plan is not None:
+            await _send(chat_id, _format_workout_plan(plan))
+        else:
+            await _send(
+                chat_id,
+                "No tienes una rutina activa. Escríbeme por ejemplo: "
+                "\"genérame una rutina para ganar músculo 4 días\".",
+            )
+        return
+
+    # action == "generate"
+    try:
+        plan = await fitness_service.generate_workout_plan(
+            db, user.id, overrides or None
+        )
+    except fitness_service.GoalRequiredError as e:
+        await _send(chat_id, str(e) + " Puedes hacerlo en la web.")
+        return
+    except fitness_service.LLMError:
+        await _send(
+            chat_id,
+            "No pude generar tu rutina ahora. Intenta de nuevo en un momento.",
+        )
+        return
+    except fitness_service.EquipmentError as e:
+        await _send(chat_id, str(e))
+        return
+
+    msg = _format_workout_plan(plan)
+    msg += f"\n\n_{fitness_service.MEDICAL_DISCLAIMER}_"
+    await _send(chat_id, msg)
 
 
 async def _handle_challenge(chat_id: int, user: User, response: dict, db: AsyncSession) -> None:

@@ -14,6 +14,9 @@ if TYPE_CHECKING:
     from app.models.password_reset_token import PasswordResetToken
     from app.models.goal import Goal
     from app.models.challenge import Challenge
+    from app.models.fitness_profile import FitnessProfile
+    from app.models.weight_entry import WeightEntry
+    from app.models.workout_plan import WorkoutPlan
 
 
 class User(Base):
@@ -37,3 +40,12 @@ class User(Base):
     password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     goals: Mapped[list["Goal"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     challenges: Mapped[list["Challenge"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    fitness_profile: Mapped["FitnessProfile | None"] = relationship(
+        back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
+    weight_entries: Mapped[list["WeightEntry"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    workout_plans: Mapped[list["WorkoutPlan"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )

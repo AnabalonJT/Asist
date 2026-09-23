@@ -7,6 +7,9 @@ from app.models.password_reset_token import PasswordResetToken
 from app.models.calorie_formula import CalorieFormula
 from app.models.goal import Goal
 from app.models.challenge import Challenge
+from app.models.fitness_profile import FitnessProfile
+from app.models.weight_entry import WeightEntry
+from app.models.workout_plan import WorkoutPlan
 
 __all__ = [
     "User",
@@ -17,4 +20,7 @@ __all__ = [
     "CalorieFormula",
     "Goal",
     "Challenge",
+    "FitnessProfile",
+    "WeightEntry",
+    "WorkoutPlan",
 ]

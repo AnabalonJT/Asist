@@ -210,3 +210,90 @@ export const adminApi = {
   users: () => api.get<AdminUserSummary[]>('/admin/users'),
   userDetail: (id: number) => api.get<AdminUserDetail>(`/admin/users/${id}`),
 }
+
+// ── Fitness ───────────────────────────────────────────────────────────────────
+export interface FitnessProfile {
+  weight_kg: number
+  height_cm: number
+  age: number
+  sex: string | null
+  level: string
+  equipment: string[]
+  days_per_week: number
+  minutes_per_session: number
+  goal_type: string | null
+  target_weight_kg: number | null
+  target_date: string | null
+  performance_target: string | null
+}
+
+export interface TargetRate {
+  rate_kg_per_week: number
+  daily_kcal_delta: number
+  direction: string
+  warning: boolean
+  warning_message: string | null
+  disclaimer: string
+}
+
+export interface WorkoutExercise {
+  name: string
+  sets: number | null
+  reps: number | null
+  duration_seconds: number | null
+  rest_seconds: number
+  equipment: string
+}
+
+export interface WorkoutDay {
+  day: string
+  exercises: WorkoutExercise[]
+}
+
+export interface WorkoutPlan {
+  id: number
+  goal_type: string
+  structure: WorkoutDay[]
+  disclaimer: string
+}
+
+export interface WeightEntry {
+  id: number
+  weight_kg: number
+  entry_date: string
+}
+
+export interface Progress {
+  series: { date: string; weight_kg: number }[]
+  target_weight_kg: number | null
+}
+
+export interface Adherence {
+  available: boolean
+  completed?: number
+  planned?: number
+  ratio?: number
+  message?: string
+}
+
+export interface GoalResult {
+  goal_type: string
+  target_weight_kg: number | null
+  target_date: string | null
+  performance_target: string | null
+  target_rate: TargetRate | null
+  disclaimer: string
+}
+
+export const fitnessApi = {
+  getProfile: () => api.get<FitnessProfile>('/fitness/profile'),
+  putProfile: (d: Partial<FitnessProfile>) => api.put<FitnessProfile>('/fitness/profile', d),
+  putGoal: (d: object) => api.put<GoalResult>('/fitness/goal', d),
+  postWeight: (d: { weight_kg: number; entry_date: string }) =>
+    api.post<WeightEntry>('/fitness/weight', d),
+  getWeight: () => api.get<WeightEntry[]>('/fitness/weight'),
+  generatePlan: () => api.post<WorkoutPlan>('/fitness/plan/generate'),
+  getPlan: () => api.get<WorkoutPlan | { message: string }>('/fitness/plan'),
+  getProgress: () => api.get<Progress>('/fitness/progress'),
+  getAdherence: () => api.get<Adherence>('/fitness/adherence'),
+}
