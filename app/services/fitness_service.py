@@ -662,9 +662,15 @@ async def generate_workout_plan(
         "target_date": profile.target_date,
     }
 
-    parsed = await llm_service.generate_workout_plan(
-        profile_dict, goal_dict, activity_summary, timeout_seconds=60.0
-    )
+    # The free OpenRouter model is slow and sometimes returns truncated JSON.
+    # Use a generous timeout and retry once before giving up.
+    parsed = None
+    for _attempt in range(2):
+        parsed = await llm_service.generate_workout_plan(
+            profile_dict, goal_dict, activity_summary, timeout_seconds=120.0
+        )
+        if parsed is not None:
+            break
     if parsed is None:
         raise LLMError(
             "No pudimos generar tu rutina en este momento. Intenta de nuevo.",

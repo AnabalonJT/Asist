@@ -367,18 +367,18 @@ def _build_workout_prompt(
     above contains literal braces). Rules are appended as plain text.
     """
     rules = (
-        "Reglas:\n"
-        f"- Entre 1 y {days_per_week} días; cada día 1 a 20 ejercicios.\n"
-        f"- Usa ÚNICAMENTE el equipo disponible del usuario: {equipment_text}. "
-        "No propongas ejercicios que requieran equipo fuera de esa lista.\n"
-        "- Cada ejercicio define sets(1-20)+reps(1-100) O duration_seconds(1-7200), "
-        "y rest_seconds(0-3600).\n"
-        f"- Ajusta volumen e intensidad al nivel ({level}) y al objetivo ({goal_desc}).\n"
-        f"- Considera la actividad reciente del usuario: {activity_summary_text}.\n"
-        "- En el campo \"equipment\" de cada ejercicio usa exactamente uno de los "
-        "elementos de la lista disponible (o \"peso corporal\").\n"
-        "- Nombres de ejercicio en español, 1 a 100 caracteres.\n"
-        "- Devuelve JSON VÁLIDO: comillas dobles, sin comas finales, sin comentarios ni texto fuera del JSON. Manténlo compacto para no cortarlo."
+        "Reglas (síguelas al pie de la letra):\n"
+        f"- Genera EXACTAMENTE {days_per_week} días. MÁXIMO 5 ejercicios por día.\n"
+        f"- Usa ÚNICAMENTE este equipo disponible: {equipment_text}. "
+        "No uses equipo fuera de esa lista.\n"
+        "- Cada ejercicio: sets(1-20)+reps(1-100) O duration_seconds(1-7200), y rest_seconds(0-3600). "
+        "Si usas sets+reps, pon duration_seconds en null; si usas duración, pon sets y reps en null.\n"
+        f"- Ajusta al nivel ({level}) y al objetivo ({goal_desc}).\n"
+        "- El campo \"equipment\" de cada ejercicio debe ser uno de la lista (o \"peso corporal\").\n"
+        "- Nombres de ejercicio en español, breves.\n"
+        "- CRÍTICO: responde SOLO el objeto JSON, compacto, en una sola respuesta completa. "
+        "Comillas dobles, sin comas finales, sin comentarios, sin texto antes ni después. "
+        "Asegúrate de CERRAR todas las llaves y corchetes."
     )
     return WORKOUT_SYSTEM_PROMPT + "\n" + rules
 
@@ -424,7 +424,90 @@ def _extract_json(content: str) -> dict | None:
     try:
         return json.loads(repaired)
     except json.JSONDecodeError:
+        pass
+
+    # 3c) repair a TRUNCATED object: drop any dangling partial token, then close
+    # all still-open brackets/braces (in the right order) and retry. This rescues
+    # plans that got cut off by the token limit.
+    try:
+        repaired2 = _close_truncated_json(text)
+        if repaired2 is not None:
+            return json.loads(repaired2)
+    except json.JSONDecodeError:
         return None
+    return None
+
+
+def _close_truncated_json(text: str) -> str | None:
+    """Attempt to close a truncated JSON object.
+
+    Walks the string tracking string state and the stack of open { and [. Cuts at
+    the last position that is a safe boundary (after a complete value), strips a
+    trailing comma, and appends the closing brackets in reverse order.
+    """
+    import re as _re
+
+    # Trim to the last character that could end a value: digit, quote, ], }, e, l
+    # (true/false/null). Everything after a dangling key/`:`/partial token is junk.
+    # Find a safe cut point by scanning for the last complete token boundary.
+    stack: list[str] = []
+    in_str = False
+    escape = False
+    last_safe = -1  # index (inclusive) of last char that safely ends a value/element
+
+    for i, ch in enumerate(text):
+        if in_str:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_str = False
+                last_safe = i
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append(ch)
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+            last_safe = i
+        elif ch in "0123456789":
+            last_safe = i
+        elif ch in "el":  # end of true/false/null
+            last_safe = i
+
+    if last_safe < 0:
+        return None
+
+    candidate = text[: last_safe + 1]
+    # Strip a trailing comma if present.
+    candidate = _re.sub(r",\s*$", "", candidate)
+
+    # Recompute the open-stack for the truncated candidate.
+    stack = []
+    in_str = False
+    escape = False
+    for ch in candidate:
+        if in_str:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append(ch)
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+
+    closing = "".join("}" if b == "{" else "]" for b in reversed(stack))
+    return candidate + closing
 
 
 async def generate_workout_plan(
