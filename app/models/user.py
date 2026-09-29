@@ -17,6 +17,10 @@ if TYPE_CHECKING:
     from app.models.fitness_profile import FitnessProfile
     from app.models.weight_entry import WeightEntry
     from app.models.workout_plan import WorkoutPlan
+    from app.models.user_food_inventory import UserFoodInventory
+    from app.models.dietary_profile import DietaryProfile
+    from app.models.nutrition_targets import NutritionTargets
+    from app.models.meal_plan import MealPlan
 
 
 class User(Base):
@@ -47,5 +51,18 @@ class User(Base):
         back_populates="user", cascade="all, delete-orphan"
     )
     workout_plans: Mapped[list["WorkoutPlan"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    # Meal_Planner relationships
+    food_inventory: Mapped[list["UserFoodInventory"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    dietary_profile: Mapped["DietaryProfile | None"] = relationship(
+        back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
+    nutrition_targets: Mapped["NutritionTargets | None"] = relationship(
+        back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
+    meal_plans: Mapped[list["MealPlan"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )

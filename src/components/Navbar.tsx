@@ -9,6 +9,7 @@ export function Navbar() {
     { to: '/goals', icon: '🎯', label: 'Metas' },
     { to: '/activities', icon: '📋', label: 'Registros' },
     { to: '/fitness', icon: '🏋️', label: 'Fitness' },
+    { to: '/meals', icon: '🍽️', label: 'Comidas' },
     { to: '/settings', icon: '⚙️', label: 'Config' },
     ...(user?.is_admin ? [{ to: '/admin', icon: '🛡️', label: 'Admin' }] : []),
   ]

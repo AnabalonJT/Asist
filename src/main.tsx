@@ -13,6 +13,7 @@ import { GoalsPage } from './pages/GoalsPage'
 import { ActivitiesPage } from './pages/ActivitiesPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { FitnessPage } from './pages/FitnessPage'
+import { MealsPage } from './pages/MealsPage'
 import { AdminPage } from './pages/AdminPage'
 import './index.css'
 
@@ -29,6 +30,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/goals" element={<GoalsPage />} />
             <Route path="/activities" element={<ActivitiesPage />} />
             <Route path="/fitness" element={<FitnessPage />} />
+            <Route path="/meals" element={<MealsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
           </Route>

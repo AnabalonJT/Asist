@@ -70,11 +70,14 @@ async def init_db() -> None:
     """
     async with engine.begin() as conn:
         # Import all models to register them with Base.metadata
-        from app.models import user, activity, reminder, linking_token, password_reset_token, calorie_formula, goal, challenge, fitness_profile, weight_entry, workout_plan  # noqa: F401
+        from app.models import user, activity, reminder, linking_token, password_reset_token, calorie_formula, goal, challenge, fitness_profile, weight_entry, workout_plan, food, user_food_inventory, dietary_profile, nutrition_targets, meal_plan  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
 
     # Add missing columns to existing tables (create_all doesn't do ALTER TABLE)
     await _migrate_columns()
+
+    # Seed the global food catalog if empty (idempotent — Req 1.1, 1.2)
+    await _seed_foods()
 
 
 async def close_db() -> None:
@@ -123,3 +126,23 @@ async def _migrate_columns() -> None:
                     logger.info("Added column %s.%s", table, column)
             except Exception as e:
                 logger.warning("Migration check for %s.%s: %s", table, column, e)
+
+
+async def _seed_foods() -> None:
+    """Seed the global food catalog with a base set if it is empty.
+
+    Idempotent (Req 1.1, 1.2): inserts only when the catalog has no foods.
+    Failures are logged but never abort startup.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        from scripts.seed_foods import seed_if_empty
+        async with AsyncSessionLocal() as session:
+            inserted = await seed_if_empty(session)
+            await session.commit()
+            if inserted:
+                logger.info("Seeded %d foods into the catalog", inserted)
+    except Exception as e:
+        logger.warning("Food catalog seed skipped: %s", e)

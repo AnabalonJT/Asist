@@ -297,3 +297,112 @@ export const fitnessApi = {
   getProgress: () => api.get<Progress>('/fitness/progress'),
   getAdherence: () => api.get<Adherence>('/fitness/adherence'),
 }
+
+// ── Meals ─────────────────────────────────────────────────────────────────────
+export interface Food {
+  id: number
+  name: string
+  kcal: number
+  protein: number
+  fat: number
+  carbs: number
+  fiber: number | null
+  is_meat: boolean
+  is_animal: boolean
+  has_gluten: boolean
+}
+
+export interface FoodInput {
+  name: string
+  kcal: number
+  protein: number
+  fat: number
+  carbs: number
+  fiber?: number | null
+  is_meat?: boolean
+  is_animal?: boolean
+  has_gluten?: boolean
+}
+
+export interface InventoryItem {
+  food_id: number
+  food_name: string
+  grams: number | null
+}
+
+export interface Dietary {
+  vegetarian: boolean
+  vegan: boolean
+  gluten_free: boolean
+  allergens: string[]
+}
+
+export interface Targets {
+  kcal: number
+  protein_g: number
+  fat_g: number
+  carbs_g: number
+  source: string
+  disclaimer: string
+}
+
+export interface MealItem {
+  food_name: string
+  grams: number
+}
+
+export interface Meal {
+  type: string
+  items: MealItem[]
+}
+
+export interface DayTotals {
+  kcal: number
+  protein_g: number
+  fat_g: number
+  carbs_g: number
+}
+
+export interface MealDay {
+  day: string
+  meals: Meal[]
+  totals: DayTotals
+}
+
+export interface MealPlan {
+  id: number
+  structure: MealDay[]
+  disclaimer: string
+}
+
+export interface ShoppingItem {
+  food_name: string
+  grams: number
+}
+
+export const mealsApi = {
+  listFoods: () => api.get<Food[]>('/meals/foods'),
+  createFood: (d: FoodInput) => api.post<Food>('/meals/foods', d),
+  updateFood: (id: number, d: FoodInput) => api.put<Food>(`/meals/foods/${id}`, d),
+  deleteFood: (id: number) => api.delete<GenericMessageResponse>(`/meals/foods/${id}`),
+
+  getInventory: () => api.get<InventoryItem[]>('/meals/inventory'),
+  addInventory: (d: { food_name: string; quantity_grams?: number | null; new_food?: FoodInput | null }) =>
+    api.post<InventoryItem>('/meals/inventory', d),
+  removeInventory: (foodId: number) =>
+    api.delete<GenericMessageResponse>(`/meals/inventory/${foodId}`),
+
+  getDietary: () => api.get<Dietary>('/meals/dietary'),
+  putDietary: (d: Dietary) => api.put<Dietary>('/meals/dietary', d),
+
+  getTargets: () =>
+    api.get<Targets | { message: string; disclaimer: string }>('/meals/targets'),
+  putTargets: (d: { kcal: number; protein_g: number; fat_g: number; carbs_g: number }) =>
+    api.put<Targets>('/meals/targets', d),
+  deriveTargets: () => api.post<Targets>('/meals/targets/derive'),
+
+  generatePlan: () => api.post<MealPlan>('/meals/plan/generate'),
+  getPlan: () => api.get<MealPlan | { message: string }>('/meals/plan'),
+
+  getShoppingList: () => api.get<ShoppingItem[]>('/meals/shopping-list'),
+}

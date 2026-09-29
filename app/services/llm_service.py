@@ -178,6 +178,23 @@ Ejemplos de fitness:
 - "quiero una rutina de entrenamiento" → generate
 - "mi rutina" / "ver mi rutina" → view
 
+## Si intent="meal" (el usuario pide, arma o consulta su plan de comidas):
+{
+  "intent": "meal",
+  "data": {
+    "action": "generate" | "view",
+    "foods": ["..."] o null (alimentos que el usuario dice tener, ej: "tengo pollo, arroz..."),
+    "goal_type": "gain_muscle" | "lose_weight" | "maintain" | null
+  }
+}
+
+Ejemplos de comidas:
+- "dame un plan de comidas" → generate
+- "qué como esta semana" / "menú de la semana" → generate
+- "tengo pollo, arroz y huevos, arma mi plan" → generate, foods=["pollo","arroz","huevos"]
+- "plan de comidas para bajar de peso" → generate, goal_type="lose_weight"
+- "ver mi plan de comidas" / "mi plan" → view
+
 Reglas importantes:
 - "Levanté 100kg en press banca" → activity, category="strength", exercise_name="Press Banca", sets=[{"reps":1,"weight_kg":100}]
 - "Hice 4 series de sentadillas con 80kg" → activity, category="strength", exercise_name="Sentadillas", sets=[{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80}]
@@ -595,4 +612,107 @@ async def generate_workout_plan(
         return None
     except Exception as e:
         logger.exception("OpenRouter workout request failed: %s", e)
+        return None
+
+
+# ── Meal plan generation (Meal_Planner, Req 6.1, 9.1-9.3) ────────────────────
+# NOTE: this template contains literal JSON braces, so it must NOT be passed
+# through str.format(). The per-request variables (inventory, kcal/macros,
+# dietary restrictions) are composed by the service layer's build_meal_prompt
+# (task 9.1) and passed in as the `prompt` argument; generate_meal_plan sends
+# MEAL_SYSTEM_PROMPT as the system message and `prompt` as the user message.
+MEAL_SYSTEM_PROMPT = """Eres un chef nutricionista. Genera un plan de comidas semanal en JSON.
+Devuelve SOLO JSON con esta estructura, sin texto adicional:
+{
+  "days": [
+    {
+      "day": "Lunes",
+      "meals": [
+        {"type": "desayuno", "items": [{"food_name": "Avena", "grams": 80}]}
+      ],
+      "totals": {"kcal": 2100, "protein_g": 160, "fat_g": 60, "carbs_g": 220}
+    }
+  ]
+}
+
+Reglas (síguelas al pie de la letra):
+- Genera EXACTAMENTE 7 días, en orden: Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo.
+- Cada día debe tener AL MENOS una comida.
+- El campo "type" de cada comida debe ser uno de: desayuno, almuerzo, cena, snack.
+- Cada comida debe tener al menos un ítem; los gramos ("grams") de cada ítem deben estar entre 1 y 100000.
+- Prioriza los alimentos que el usuario tiene en su inventario.
+- Aproxima las kcal y macronutrientes diarios a las metas indicadas.
+- Respeta las restricciones dietéticas: no incluyas alimentos prohibidos ni alérgenos.
+- Calcula los totales diarios ("totals": kcal, protein_g, fat_g, carbs_g) a partir de los ítems del día.
+- Los nombres de los alimentos deben estar en español.
+- CRÍTICO: responde SOLO el objeto JSON, compacto, en una sola respuesta completa. Comillas dobles, sin comas finales, sin comentarios, sin texto antes ni después. Asegúrate de CERRAR todas las llaves y corchetes.
+"""
+
+
+async def generate_meal_plan(
+    prompt: str,
+    timeout_seconds: float = 60.0,
+) -> dict | None:
+    """Generate a weekly meal plan via OpenRouter.
+
+    Sends MEAL_SYSTEM_PROMPT as the system message and `prompt` (composed by the
+    service layer's build_meal_prompt with inventory, targets and dietary rules)
+    as the user message. Calls OpenRouter with the given timeout, then uses the
+    tolerant `_extract_json` helper (handles code fences, trailing commas and
+    truncated-JSON repair) to parse the response.
+
+    Returns the parsed dict, or None on timeout / HTTP error / empty response /
+    unparseable JSON.
+    """
+    url = f"{settings.openrouter_base_url}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {settings.openrouter_api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": settings.openrouter_model,
+        "messages": [
+            {"role": "system", "content": MEAL_SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.2,
+        "max_tokens": 2000,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+            response = await client.post(url, headers=headers, json=payload)
+
+        if response.status_code != 200:
+            logger.error(
+                "OpenRouter meal error %s: %s",
+                response.status_code,
+                response.text[:200],
+            )
+            return None
+
+        data = response.json()
+        choices = data.get("choices", [])
+        if not choices:
+            logger.warning("OpenRouter returned empty choices for meal plan")
+            return None
+
+        content = choices[0].get("message", {}).get("content", "")
+        if not content or not content.strip():
+            logger.warning("OpenRouter returned empty content for meal plan")
+            return None
+
+        parsed = _extract_json(content)
+        if parsed is None:
+            logger.warning(
+                "OpenRouter meal returned unparseable JSON: %s", content[:300]
+            )
+            return None
+        return parsed
+
+    except httpx.TimeoutException:
+        logger.warning("OpenRouter meal timeout (%ss)", timeout_seconds)
+        return None
+    except Exception as e:
+        logger.exception("OpenRouter meal request failed: %s", e)
         return None

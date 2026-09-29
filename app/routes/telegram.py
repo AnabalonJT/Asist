@@ -343,6 +343,71 @@ def _detect_fitness_keywords(text: str) -> dict | None:
     }
 
 
+def _detect_meal_keywords(text: str) -> dict | None:
+    """
+    Detect meal-plan intent from keywords.
+    Triggers on: "plan de comidas", "qué como", "menú", "dame el plan", and
+    food-inventory lists starting with "tengo ...". Returns a fake LLM meal
+    response dict or None.
+    """
+    import re
+
+    lower = text.lower().strip()
+
+    triggers = [
+        "plan de comidas", "plan de comida", "qué como", "que como",
+        "menú", "menu", "dame el plan",
+    ]
+    has_inventory = lower.startswith("tengo ")
+    if not any(t in lower for t in triggers) and not has_inventory:
+        return None
+
+    # View if the user asks to see/show an existing plan, unless the message is a
+    # build request (an explicit "arma/genera/..." instruction or a "tengo ..."
+    # inventory list), in which case it is a generation request.
+    build_words = [
+        "arma", "armar", "hazme", "haz", "genera", "genérame", "generame",
+        "dame", "prepara", "prepárame", "preparame", "crea", "créame", "creame",
+    ]
+    is_build = has_inventory or any(w in lower for w in build_words)
+    view_words = ["ver", "mostrar", "muéstrame", "muestrame", "mi plan de comidas", "mi plan"]
+    action = "view" if (any(w in lower for w in view_words) and not is_build) else "generate"
+
+    # Heuristic goal type detection.
+    goal_type = None
+    if "ganar músculo" in lower or "ganar musculo" in lower or "músculo" in lower or "musculo" in lower:
+        goal_type = "gain_muscle"
+    elif "adelgazar" in lower or "bajar de peso" in lower or "perder peso" in lower or "bajar peso" in lower:
+        goal_type = "lose_weight"
+    elif "mantener" in lower:
+        goal_type = "maintain"
+
+    # Parse a "tengo X, Y y Z" food list when present.
+    foods = None
+    tengo_match = re.search(r'tengo\s+(.+)', lower)
+    if tengo_match:
+        foods_text = tengo_match.group(1)
+        # Cut off any trailing instruction after the food list (e.g. ", arma mi plan").
+        foods_text = re.split(
+            r'\b(?:arma|armar|hazme|haz|genera|gener[aá]me|dame|prepara|prep[aá]rame|para)\b',
+            foods_text,
+            maxsplit=1,
+        )[0]
+        # Split on commas and the connector " y ".
+        parts = re.split(r'\s*,\s*|\s+y\s+', foods_text)
+        foods = [p.strip(" .,;:-") for p in parts if p.strip(" .,;:-")]
+        foods = foods or None
+
+    return {
+        "intent": "meal",
+        "data": {
+            "action": action,
+            "foods": foods,
+            "goal_type": goal_type,
+        }
+    }
+
+
 def _detect_challenge_keywords(text: str) -> dict | None:
     """
     Detect challenge/multi-goal intent from keywords.
@@ -685,6 +750,9 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     # Quick keyword detection for fitness/workout routines
     forced_fitness = _detect_fitness_keywords(text)
 
+    # Quick keyword detection for meal plans
+    forced_meal = _detect_meal_keywords(text)
+
     response = await interpret_message(text)
     if not response:
         if forced_reminder:
@@ -697,6 +765,8 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
             response = forced_activity
         elif forced_fitness:
             response = forced_fitness
+        elif forced_meal:
+            response = forced_meal
         else:
             await _send_help(chat_id, user)
             return
@@ -723,6 +793,10 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     elif intent not in ("reminder", "challenge", "goal", "activity") and forced_fitness:
         intent = "fitness"
         response = forced_fitness
+    # Override for meal plans (lowest priority; only if not already handled)
+    elif intent not in ("reminder", "challenge", "goal", "activity", "fitness") and forced_meal:
+        intent = "meal"
+        response = forced_meal
 
     if intent == "activity":
         activity_data = parse_activity(response)
@@ -905,6 +979,9 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     elif intent == "fitness":
         await _handle_fitness(chat_id, user, response, db)
 
+    elif intent == "meal":
+        await _handle_meal(chat_id, user, response, db)
+
     else:
         await _send_help(chat_id, user)
 
@@ -1032,6 +1109,109 @@ async def _handle_fitness(chat_id: int, user: User, response: dict, db: AsyncSes
 
     msg = _format_workout_plan(plan)
     msg += f"\n\n_{fitness_service.MEDICAL_DISCLAIMER}_"
+    await _send(chat_id, msg)
+
+
+def _format_meal_plan(plan) -> str:
+    """Format a MealPlan into a Spanish, compact 7-day message."""
+    lines = ["🍽️ *Tu plan de comidas:*\n"]
+    for day in plan.structure_list():
+        day_name = day.get("day", "Día")
+        lines.append(f"\n📅 *{day_name}*")
+        for meal in day.get("meals", []):
+            meal_type = meal.get("type", "comida")
+            items = meal.get("items", [])
+            item_strs = []
+            for item in items:
+                food_name = item.get("food_name", "alimento")
+                grams = item.get("grams")
+                if grams is not None:
+                    item_strs.append(f"{food_name} ({grams:g}g)")
+                else:
+                    item_strs.append(f"{food_name}")
+            line = f"  • {meal_type.capitalize()}: " + ", ".join(item_strs)
+            lines.append(line)
+        totals = day.get("totals", {}) or {}
+        day_kcal = totals.get("kcal")
+        if day_kcal is not None:
+            lines.append(f"  🔥 {day_kcal:g} kcal")
+    return "\n".join(lines)
+
+
+async def _handle_meal(chat_id: int, user: User, response: dict, db: AsyncSession) -> None:
+    """Handle meal intent: generate a new meal plan or view the active one."""
+    from app.services import meal_service
+
+    data = response.get("data", {}) or {}
+    action = data.get("action", "generate")
+    foods = data.get("foods") or []
+    goal_type = data.get("goal_type")
+
+    if action == "view":
+        plan = await meal_service.get_active_plan(db, user.id)
+        if plan is not None:
+            await _send(chat_id, _format_meal_plan(plan))
+        else:
+            await _send(
+                chat_id,
+                "No tienes un plan de comidas activo. Escríbeme por ejemplo: "
+                "\"tengo pollo, arroz y huevos, arma mi plan\".",
+            )
+        return
+
+    # action == "generate"
+    # 1. Add each provided food to the user's inventory. Unknown foods (not in the
+    #    catalog) raise ValidationError because new_food_fields is None; skip them.
+    added: list[str] = []
+    skipped: list[str] = []
+    for food_name in foods:
+        try:
+            await meal_service.add_inventory(
+                db, user.id, food_name, quantity_grams=None, new_food_fields=None
+            )
+            added.append(food_name)
+        except meal_service.ValidationError:
+            skipped.append(food_name)
+
+    # 2. If a goal_type is provided and the user has no targets yet, try to derive.
+    if goal_type is not None:
+        existing = await meal_service.get_targets(db, user.id)
+        if existing is None:
+            try:
+                await meal_service.derive_targets(db, user.id)
+            except meal_service.GoalRequiredError:
+                # Surface the guidance below when generation fails.
+                pass
+
+    # 3. Generate the plan.
+    try:
+        plan = await meal_service.generate_meal_plan(db, user.id)
+    except meal_service.GoalRequiredError as e:
+        await _send(chat_id, str(e) + " Puedes hacerlo en la web.")
+        return
+    except meal_service.ValidationError as e:
+        await _send(chat_id, str(e))
+        return
+    except meal_service.LLMError:
+        await _send(
+            chat_id,
+            "No pude generar tu plan de comidas ahora. Intenta de nuevo en un momento.",
+        )
+        return
+    except (meal_service.ToleranceError, meal_service.DietaryError) as e:
+        await _send(chat_id, str(e) + " Intenta de nuevo.")
+        return
+
+    # 4. Success: format the plan and append the disclaimer.
+    msg = _format_meal_plan(plan)
+    if skipped:
+        note = (
+            "Nota: no pude agregar al inventario: "
+            + ", ".join(skipped)
+            + " (no están en el catálogo; agrégalos en la web).\n\n"
+        )
+        msg = note + msg
+    msg += f"\n\n_{meal_service.MEAL_DISCLAIMER}_"
     await _send(chat_id, msg)
 
 

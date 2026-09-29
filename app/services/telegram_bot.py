@@ -105,16 +105,21 @@ async def _message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     from app.models.activity import Activity
     from app.models.reminder import Reminder
 
-    from app.routes.telegram import _detect_fitness_keywords
+    from app.routes.telegram import _detect_fitness_keywords, _detect_meal_keywords
 
     # Quick keyword detection for fitness/workout routines (LLM fallback + override)
     forced_fitness = _detect_fitness_keywords(text)
+
+    # Quick keyword detection for meal plans (LLM fallback + override)
+    forced_meal = _detect_meal_keywords(text)
 
     response = await interpret_message(text)
 
     if not response:
         if forced_fitness:
             response = forced_fitness
+        elif forced_meal:
+            response = forced_meal
         else:
             await _send_chat_response(update, user)
             return
@@ -122,9 +127,13 @@ async def _message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     intent = response.get("intent", "chat")
 
     # Override for fitness routines (only if not already a recognized intent here)
-    if intent not in ("activity", "reminder", "timezone", "fitness") and forced_fitness:
+    if intent not in ("activity", "reminder", "timezone", "fitness", "meal") and forced_fitness:
         intent = "fitness"
         response = forced_fitness
+    # Override for meal plans (only if not already a recognized intent here)
+    elif intent not in ("activity", "reminder", "timezone", "fitness", "meal") and forced_meal:
+        intent = "meal"
+        response = forced_meal
 
     if intent == "activity":
         await _handle_activity(update, user, response, calorie_service, Activity)
@@ -134,6 +143,8 @@ async def _message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await _handle_timezone(update, user, response)
     elif intent == "fitness":
         await _handle_fitness(update, user, response)
+    elif intent == "meal":
+        await _handle_meal(update, user, response)
     else:
         await _send_chat_response(update, user)
 
@@ -423,6 +434,114 @@ async def _handle_fitness(update, user, response):
 
     msg = _format_workout_plan(plan)
     msg += f"\n\n_{fitness_service.MEDICAL_DISCLAIMER}_"
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
+
+def _format_meal_plan(plan) -> str:
+    """Format a MealPlan into a Spanish, compact 7-day message."""
+    lines = ["🍽️ *Tu plan de comidas:*\n"]
+    for day in plan.structure_list():
+        day_name = day.get("day", "Día")
+        lines.append(f"\n📅 *{day_name}*")
+        for meal in day.get("meals", []):
+            meal_type = meal.get("type", "comida")
+            items = meal.get("items", [])
+            item_strs = []
+            for item in items:
+                food_name = item.get("food_name", "alimento")
+                grams = item.get("grams")
+                if grams is not None:
+                    item_strs.append(f"{food_name} ({grams:g}g)")
+                else:
+                    item_strs.append(f"{food_name}")
+            line = f"  • {meal_type.capitalize()}: " + ", ".join(item_strs)
+            lines.append(line)
+        totals = day.get("totals", {}) or {}
+        day_kcal = totals.get("kcal")
+        if day_kcal is not None:
+            lines.append(f"  🔥 {day_kcal:g} kcal")
+    return "\n".join(lines)
+
+
+async def _handle_meal(update, user, response):
+    """Handle meal intent: generate a new meal plan or view the active one."""
+    from app.services import meal_service
+
+    data = response.get("data", {}) or {}
+    action = data.get("action", "generate")
+    foods = data.get("foods") or []
+    goal_type = data.get("goal_type")
+
+    if action == "view":
+        async with AsyncSessionLocal() as db:
+            plan = await meal_service.get_active_plan(db, user.id)
+        if plan is not None:
+            await update.message.reply_text(
+                _format_meal_plan(plan), parse_mode="Markdown"
+            )
+        else:
+            await update.message.reply_text(
+                "No tienes un plan de comidas activo. Escríbeme por ejemplo: "
+                "\"tengo pollo, arroz y huevos, arma mi plan\"."
+            )
+        return
+
+    # action == "generate"
+    added: list[str] = []
+    skipped: list[str] = []
+    try:
+        async with AsyncSessionLocal() as db:
+            # 1. Add each provided food to the user's inventory. Unknown foods (not
+            #    in the catalog) raise ValidationError because new_food_fields is
+            #    None; skip them without aborting the whole flow.
+            for food_name in foods:
+                try:
+                    await meal_service.add_inventory(
+                        db, user.id, food_name,
+                        quantity_grams=None, new_food_fields=None,
+                    )
+                    added.append(food_name)
+                except meal_service.ValidationError:
+                    skipped.append(food_name)
+
+            # 2. If a goal_type is provided and the user has no targets yet, derive.
+            if goal_type is not None:
+                existing = await meal_service.get_targets(db, user.id)
+                if existing is None:
+                    try:
+                        await meal_service.derive_targets(db, user.id)
+                    except meal_service.GoalRequiredError:
+                        # Surface the guidance below when generation fails.
+                        pass
+
+            # 3. Generate the plan.
+            plan = await meal_service.generate_meal_plan(db, user.id)
+            await db.commit()
+    except meal_service.GoalRequiredError as e:
+        await update.message.reply_text(str(e) + " Puedes hacerlo en la web.")
+        return
+    except meal_service.ValidationError as e:
+        await update.message.reply_text(str(e))
+        return
+    except meal_service.LLMError:
+        await update.message.reply_text(
+            "No pude generar tu plan de comidas ahora. Intenta de nuevo en un momento."
+        )
+        return
+    except (meal_service.ToleranceError, meal_service.DietaryError) as e:
+        await update.message.reply_text(str(e) + " Intenta de nuevo.")
+        return
+
+    # 4. Success: format the plan and append the disclaimer.
+    msg = _format_meal_plan(plan)
+    if skipped:
+        note = (
+            "Nota: no pude agregar al inventario: "
+            + ", ".join(skipped)
+            + " (no están en el catálogo; agrégalos en la web).\n\n"
+        )
+        msg = note + msg
+    msg += f"\n\n_{meal_service.MEAL_DISCLAIMER}_"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 
