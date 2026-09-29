@@ -490,12 +490,24 @@ async def add_weight_entry(
             "El peso registrado debe estar entre 30 y 300 kg."
         )
 
-    entry = WeightEntry(
-        user_id=user_id,
-        weight_kg=weight_kg,
-        entry_date=entry_date,
+    # One entry per date: if an entry already exists for this date, update it
+    # instead of creating a duplicate (Req 7 — a weigh-in identifies a date).
+    existing = await db.execute(
+        select(WeightEntry).where(
+            WeightEntry.user_id == user_id,
+            WeightEntry.entry_date == entry_date,
+        )
     )
-    db.add(entry)
+    entry = existing.scalar_one_or_none()
+    if entry is not None:
+        entry.weight_kg = weight_kg
+    else:
+        entry = WeightEntry(
+            user_id=user_id,
+            weight_kg=weight_kg,
+            entry_date=entry_date,
+        )
+        db.add(entry)
     await db.flush()
 
     # If this is the most recent entry date, sync the profile's current weight.

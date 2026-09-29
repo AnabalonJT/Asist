@@ -377,9 +377,54 @@ def _build_workout_prompt(
         f"- Considera la actividad reciente del usuario: {activity_summary_text}.\n"
         "- En el campo \"equipment\" de cada ejercicio usa exactamente uno de los "
         "elementos de la lista disponible (o \"peso corporal\").\n"
-        "- Nombres de ejercicio en español, 1 a 100 caracteres."
+        "- Nombres de ejercicio en español, 1 a 100 caracteres.\n"
+        "- Devuelve JSON VÁLIDO: comillas dobles, sin comas finales, sin comentarios ni texto fuera del JSON. Manténlo compacto para no cortarlo."
     )
     return WORKOUT_SYSTEM_PROMPT + "\n" + rules
+
+
+def _extract_json(content: str) -> dict | None:
+    """Best-effort extraction of a JSON object from an LLM response.
+
+    Free models often wrap JSON in prose or emit minor syntax errors (trailing
+    commas, code fences). Strategy:
+      1. strip markdown code fences,
+      2. slice from the first '{' to the last '}',
+      3. try json.loads; if it fails, remove trailing commas and retry.
+    Returns the parsed dict, or None if it still cannot be parsed.
+    """
+    import re
+
+    if not content:
+        return None
+    text = content.strip()
+
+    # 1) strip code fences
+    if text.startswith("```"):
+        lines = text.split("\n", 1)
+        text = lines[1] if len(lines) > 1 else ""
+    if text.endswith("```"):
+        text = text.rsplit("```", 1)[0]
+    text = text.strip()
+
+    # 2) slice to the outermost JSON object
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        text = text[start : end + 1]
+
+    # 3a) direct parse
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # 3b) remove trailing commas before } or ] and retry
+    repaired = re.sub(r",(\s*[}\]])", r"\1", text)
+    try:
+        return json.loads(repaired)
+    except json.JSONDecodeError:
+        return None
 
 
 async def generate_workout_plan(
@@ -428,7 +473,7 @@ async def generate_workout_plan(
             {"role": "user", "content": user_message},
         ],
         "temperature": 0.2,
-        "max_tokens": 1200,
+        "max_tokens": 2000,
     }
 
     try:
@@ -450,26 +495,20 @@ async def generate_workout_plan(
             return None
 
         content = choices[0].get("message", {}).get("content", "")
-        content = content.strip()
-        if not content:
+        if not content or not content.strip():
             logger.warning("OpenRouter returned empty content for workout plan")
             return None
 
-        # Strip markdown code fences if present
-        if content.startswith("```"):
-            lines = content.split("\n", 1)
-            content = lines[1] if len(lines) > 1 else ""
-        if content.endswith("```"):
-            content = content.rsplit("```", 1)[0]
-        content = content.strip()
-
-        return json.loads(content)
+        parsed = _extract_json(content)
+        if parsed is None:
+            logger.warning(
+                "OpenRouter workout returned unparseable JSON: %s", content[:300]
+            )
+            return None
+        return parsed
 
     except httpx.TimeoutException:
         logger.warning("OpenRouter workout timeout (%ss)", timeout_seconds)
-        return None
-    except json.JSONDecodeError as e:
-        logger.warning("OpenRouter workout returned non-JSON: %s", e)
         return None
     except Exception as e:
         logger.exception("OpenRouter workout request failed: %s", e)
