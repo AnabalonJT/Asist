@@ -65,7 +65,7 @@ def main() -> int:
             "age": 28,
             "sex": "male",
             "level": "intermedio",
-            "equipment": ["mancuernas", "barra", "banco", "rack", "poleas", "barra de dominadas", "barras paralelas", "peso corporal"],
+            "equipment": ["mancuernas", "barra", "banco", "rack", "poleas", "barra de dominadas", "barras paralelas", "kettlebell", "bandas", "peso corporal"],
             "days_per_week": 4,
             "minutes_per_session": 60,
         }

@@ -382,6 +382,10 @@ def validate_plan_equipment(structure: list[dict], available: list[str]) -> None
 
     - "peso corporal" (bodyweight) never requires equipment and is always allowed.
     - "gimnasio completo" (full gym) unlocks every piece of equipment.
+
+    NOTE: the generator now prefers ``filter_plan_equipment`` (drop offending
+    exercises) over rejecting the whole plan. This strict validator is kept for
+    tests and explicit checks.
     """
     available_set = set(available or [])
     # Full-gym access means every exercise's equipment requirement is satisfied.
@@ -397,6 +401,40 @@ def validate_plan_equipment(structure: list[dict], available: list[str]) -> None
                     "La rutina generada usa equipo que no tienes disponible. "
                     "Intenta generarla de nuevo."
                 )
+
+
+def filter_plan_equipment(
+    structure: list[dict], available: list[str]
+) -> list[dict]:
+    """Return a copy of the plan keeping only exercises the user can actually do.
+
+    Rather than rejecting an otherwise-good plan because one exercise maps to
+    equipment the user lacks, drop just those exercises. Days left with no
+    exercises are removed. "peso corporal" is always allowed; "gimnasio completo"
+    keeps everything. Raise ``EquipmentError`` only if NOTHING is left.
+    """
+    available_set = set(available or [])
+    if FULL_GYM in available_set:
+        return structure
+
+    filtered_days: list[dict] = []
+    for day in structure:
+        kept = []
+        for exercise in day.get("exercises", []):
+            needed = required_equipment(exercise.get("name", ""))
+            if needed == DEFAULT_EQUIPMENT or needed in available_set:
+                kept.append(exercise)
+        if kept:
+            new_day = dict(day)
+            new_day["exercises"] = kept
+            filtered_days.append(new_day)
+
+    if not filtered_days:
+        raise EquipmentError(
+            "La rutina generada usa equipo que no tienes disponible. "
+            "Intenta generarla de nuevo."
+        )
+    return filtered_days
 
 
 def clamp_days_to_availability(
@@ -703,9 +741,10 @@ async def generate_workout_plan(
 
     days = clamp_days_to_availability(days, effective_days)
 
-    # Equipment validation propagates as EquipmentError (router translates it).
-    # Nothing is persisted, so the previous plan/profile/goal remain intact.
-    validate_plan_equipment(days, effective_equipment)
+    # Drop exercises whose equipment the user lacks (instead of rejecting the whole
+    # plan). Only raises EquipmentError if nothing survives. Nothing is persisted
+    # on failure, so the previous plan/profile/goal remain intact.
+    days = filter_plan_equipment(days, effective_equipment)
 
     # Success: deactivate the previous active plan and persist the new one.
     previous = await get_active_plan(db, user_id)
