@@ -9,15 +9,21 @@ import {
 } from '../lib/api'
 import { WeightChart } from '../components/WeightChart'
 
-const EQUIPMENT_CATALOG = [
-  'mancuernas',
-  'barra',
-  'banco',
-  'kettlebell',
-  'bandas',
-  'peso corporal',
-  'acceso a gimnasio',
-  'máquinas',
+type EquipmentItem = { id: string; label: string; hint: string }
+
+// id must match app/services/fitness_service.py EQUIPMENT_CATALOG exactly.
+const EQUIPMENT_CATALOG: EquipmentItem[] = [
+  { id: 'mancuernas', label: 'Mancuernas', hint: 'Pesas de mano ajustables o fijas' },
+  { id: 'barra', label: 'Barra + discos', hint: 'Barra olímpica con discos (peso muerto, remo)' },
+  { id: 'banco', label: 'Banco', hint: 'Banco plano o ajustable (press banca)' },
+  { id: 'rack', label: 'Rack / jaula', hint: 'Para sentadillas y press con barra pesada' },
+  { id: 'barra de dominadas', label: 'Barra de dominadas', hint: 'Pull-ups, chin-ups, colgado' },
+  { id: 'barras paralelas', label: 'Barras paralelas', hint: 'Fondos / dips' },
+  { id: 'poleas', label: 'Poleas / cable', hint: 'Torre de poleas: jalón, cruces, tríceps' },
+  { id: 'kettlebell', label: 'Kettlebell', hint: 'Pesa rusa (swings, goblet)' },
+  { id: 'bandas', label: 'Bandas elásticas', hint: 'Bandas de resistencia' },
+  { id: 'peso corporal', label: 'Peso corporal', hint: 'Sin equipo: flexiones, plancha, sentadilla libre' },
+  { id: 'gimnasio completo', label: 'Gimnasio completo', hint: 'Tengo acceso a todo el equipo de un gimnasio' },
 ]
 
 const GOAL_TYPES: { value: string; label: string }[] = [
@@ -363,18 +369,28 @@ export function FitnessPage() {
 
           <div>
             <label className="text-xs text-text-secondary">Equipo disponible</label>
-            <div className="grid grid-cols-2 gap-2 mt-1">
+            <p className="text-[11px] text-text-dim mb-2">
+              Marca solo lo que tienes. Si tienes acceso a un gimnasio con todo,
+              marca "Gimnasio completo".
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
               {EQUIPMENT_CATALOG.map((item) => (
                 <label
-                  key={item}
-                  className="flex items-center gap-2 text-sm text-text-primary cursor-pointer"
+                  key={item.id}
+                  className="flex items-start gap-2 text-sm text-text-primary cursor-pointer"
                 >
                   <input
                     type="checkbox"
-                    checked={profile.equipment.includes(item)}
-                    onChange={() => toggleEquipment(item)}
+                    className="mt-0.5"
+                    checked={profile.equipment.includes(item.id)}
+                    onChange={() => toggleEquipment(item.id)}
                   />
-                  <span className="capitalize">{item}</span>
+                  <span>
+                    <span className="block leading-tight">{item.label}</span>
+                    <span className="block text-[11px] text-text-dim leading-tight">
+                      {item.hint}
+                    </span>
+                  </span>
                 </label>
               ))}
             </div>

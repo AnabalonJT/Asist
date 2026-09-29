@@ -8,41 +8,80 @@ messages are in Spanish; identifiers and comments are in English.
 from datetime import date, datetime
 
 # ── Equipment catalog & exercise → equipment map (Req 1.2, 1.7, 5.4) ─────────
+# Granular, unambiguous catalog. Each item maps to a concrete piece of gear so
+# the plan generator and validator know exactly what the user can use.
 EQUIPMENT_CATALOG: set[str] = {
-    "mancuernas",
-    "barra",
-    "banco",
+    "mancuernas",           # dumbbells
+    "barra",                # olympic barbell + plates
+    "banco",                # bench (flat/adjustable)
+    "rack",                 # squat rack / power cage
+    "barra de dominadas",   # pull-up bar (pull-ups, chin-ups)
+    "barras paralelas",     # parallel bars / dip station (dips, fondos)
+    "poleas",               # cable machine / pulley tower
     "kettlebell",
-    "bandas",
-    "peso corporal",
-    "acceso a gimnasio",
-    "máquinas",
+    "bandas",               # resistance bands
+    "peso corporal",        # bodyweight (always available)
+    "gimnasio completo",    # full gym access (implies every other item)
 }
+
+# Equipment that, if present, unlocks every other piece of equipment.
+FULL_GYM = "gimnasio completo"
 
 # Default equipment when an exercise is unknown: "peso corporal" (bodyweight).
 DEFAULT_EQUIPMENT = "peso corporal"
 
 # Required equipment per exercise keyword. Matching is by keyword contained in
 # the (lowercased) exercise name; unknown exercises fall back to bodyweight.
+# Order matters: more specific keywords should appear before generic ones.
 EXERCISE_EQUIPMENT: dict[str, str] = {
+    # Bench-based
     "press banca": "banco",
     "press de banca": "banco",
-    "sentadilla con barra": "barra",
+    "press inclinado": "banco",
+    # Barbell
+    "sentadilla con barra": "rack",
+    "sentadilla trasera": "rack",
+    "sentadilla frontal": "rack",
+    "press militar con barra": "rack",
     "peso muerto": "barra",
     "hip thrust": "barra",
+    "remo con barra": "barra",
+    "curl con barra": "barra",
+    # Dumbbell
     "curl con mancuerna": "mancuernas",
     "press con mancuerna": "mancuernas",
+    "remo con mancuerna": "mancuernas",
+    "aperturas con mancuerna": "mancuernas",
+    # Kettlebell
     "swing": "kettlebell",
     "goblet": "kettlebell",
+    # Bands
     "remo con banda": "bandas",
     "banda": "bandas",
-    "prensa": "máquinas",
-    "polea": "máquinas",
-    "máquina": "máquinas",
+    # Cable / pulley
+    "polea": "poleas",
+    "jalón": "poleas",
+    "jalon": "poleas",
+    "cruce de poleas": "poleas",
+    "tríceps en polea": "poleas",
+    "triceps en polea": "poleas",
+    # Pull-up bar
+    "dominadas": "barra de dominadas",
+    "dominada": "barra de dominadas",
+    "pull up": "barra de dominadas",
+    "pull-up": "barra de dominadas",
+    "chin up": "barra de dominadas",
+    "colgado": "barra de dominadas",
+    # Parallel bars / dip station
+    "fondos": "barras paralelas",
+    "fondos en paralelas": "barras paralelas",
+    "dips": "barras paralelas",
+    # Bodyweight
     "flexiones": "peso corporal",
-    "dominadas": "peso corporal",
     "plancha": "peso corporal",
-    "fondos": "peso corporal",
+    "sentadilla libre": "peso corporal",
+    "zancadas": "peso corporal",
+    "burpees": "peso corporal",
 }
 
 VALID_LEVELS: set[str] = {"principiante", "intermedio", "avanzado"}
@@ -341,9 +380,13 @@ def validate_plan_equipment(structure: list[dict], available: list[str]) -> None
     """Raise ``EquipmentError`` (Spanish, offers retry) if any exercise requires
     equipment not present in ``available``.
 
-    "peso corporal" (bodyweight) never requires equipment and is always allowed.
+    - "peso corporal" (bodyweight) never requires equipment and is always allowed.
+    - "gimnasio completo" (full gym) unlocks every piece of equipment.
     """
     available_set = set(available or [])
+    # Full-gym access means every exercise's equipment requirement is satisfied.
+    if FULL_GYM in available_set:
+        return
     for day in structure:
         for exercise in day.get("exercises", []):
             needed = required_equipment(exercise.get("name", ""))

@@ -284,6 +284,17 @@ async def generate_plan(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
     except EquipmentError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception:
+        # Defense in depth: never surface a raw 500. Any unexpected failure during
+        # plan generation becomes a friendly retryable error in Spanish.
+        import logging
+        logging.getLogger(__name__).exception(
+            "Unexpected error generating workout plan for user_id=%s", current_user.id
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="No pudimos generar tu rutina en este momento. Intenta de nuevo.",
+        )
 
     return WorkoutPlanOut(
         id=plan.id,

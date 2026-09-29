@@ -341,6 +341,9 @@ async def _call_llm(user_message: str) -> str | None:
 
 
 # ── Workout plan generation (Fitness_Coach, Req 5.1, 6.1-6.3) ────────────────
+# NOTE: this template contains literal JSON braces, so it must NOT be passed
+# through str.format(). The variable rules are built separately in
+# _build_workout_prompt() and concatenated.
 WORKOUT_SYSTEM_PROMPT = """Eres un entrenador personal. Genera una rutina de entrenamiento en JSON.
 Devuelve SOLO JSON con esta estructura, sin texto adicional:
 {
@@ -354,13 +357,29 @@ Devuelve SOLO JSON con esta estructura, sin texto adicional:
     }
   ]
 }
-Reglas:
-- Entre 1 y {days_per_week} días; cada día 1 a 20 ejercicios.
-- Usa ÚNICAMENTE equipo de esta lista disponible: {equipment}.
-- Cada ejercicio define sets(1-20)+reps(1-100) O duration_seconds(1-7200), y rest_seconds(0-3600).
-- Ajusta volumen e intensidad al nivel ({level}) y al objetivo ({goal}).
-- Considera la actividad reciente del usuario: {activity_summary}.
-- Nombres de ejercicio en español, 1 a 100 caracteres."""
+"""
+
+
+def _build_workout_prompt(
+    days_per_week, equipment_text: str, level, goal_desc: str, activity_summary_text: str
+) -> str:
+    """Compose the full workout system prompt WITHOUT str.format (the JSON example
+    above contains literal braces). Rules are appended as plain text.
+    """
+    rules = (
+        "Reglas:\n"
+        f"- Entre 1 y {days_per_week} días; cada día 1 a 20 ejercicios.\n"
+        f"- Usa ÚNICAMENTE el equipo disponible del usuario: {equipment_text}. "
+        "No propongas ejercicios que requieran equipo fuera de esa lista.\n"
+        "- Cada ejercicio define sets(1-20)+reps(1-100) O duration_seconds(1-7200), "
+        "y rest_seconds(0-3600).\n"
+        f"- Ajusta volumen e intensidad al nivel ({level}) y al objetivo ({goal_desc}).\n"
+        f"- Considera la actividad reciente del usuario: {activity_summary_text}.\n"
+        "- En el campo \"equipment\" de cada ejercicio usa exactamente uno de los "
+        "elementos de la lista disponible (o \"peso corporal\").\n"
+        "- Nombres de ejercicio en español, 1 a 100 caracteres."
+    )
+    return WORKOUT_SYSTEM_PROMPT + "\n" + rules
 
 
 async def generate_workout_plan(
@@ -384,12 +403,12 @@ async def generate_workout_plan(
     goal_type = goal.get("goal_type")
     goal_desc = goal.get("performance_target") or goal_type
 
-    system_prompt = WORKOUT_SYSTEM_PROMPT.format(
+    system_prompt = _build_workout_prompt(
         days_per_week=days_per_week,
-        equipment=", ".join(equipment) if equipment else "peso corporal",
+        equipment_text=", ".join(equipment) if equipment else "peso corporal",
         level=level,
-        goal=goal_desc,
-        activity_summary=json.dumps(activity_summary, ensure_ascii=False),
+        goal_desc=goal_desc,
+        activity_summary_text=json.dumps(activity_summary, ensure_ascii=False),
     )
 
     user_message = (
