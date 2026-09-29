@@ -26,7 +26,7 @@ EMAIL = os.environ.get("FIT_EMAIL")
 PASSWORD = os.environ.get("FIT_PASSWORD")
 
 # Plan generation calls the LLM (can take up to ~60s).
-TIMEOUT = httpx.Timeout(90.0)
+TIMEOUT = httpx.Timeout(240.0)  # backend may retry (2 x 120s) with the slow free LLM
 
 
 def _pretty(obj) -> str:
