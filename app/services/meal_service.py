@@ -1292,6 +1292,10 @@ async def generate_meal_plan(db: AsyncSession, user_id, overrides: dict | None =
     dietary = await get_dietary(db, user_id)
 
     # 4. Build the prompt and call the LLM (120 s — the free model is slow).
+    # Lazy import to avoid a circular import at module load; aliased so it
+    # does not shadow this function.
+    from app.services.llm_service import generate_meal_plan as llm_generate_meal_plan
+
     prompt = build_meal_prompt(inventory, targets, dietary)
     parsed = await llm_generate_meal_plan(prompt, timeout_seconds=120.0)
     if parsed is None:
