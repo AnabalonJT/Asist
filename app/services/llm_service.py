@@ -694,7 +694,13 @@ async def generate_meal_plan(
         data = response.json()
         choices = data.get("choices", [])
         if not choices:
-            logger.warning("OpenRouter returned empty choices for meal plan")
+            # Free models sometimes answer 200 with no choices (queued/rate
+            # limited) and put the reason in an 'error' field. Log the body so
+            # we can tell an empty answer from an upstream error.
+            logger.warning(
+                "OpenRouter returned empty choices for meal plan: %s",
+                json.dumps(data)[:400],
+            )
             return None
 
         content = choices[0].get("message", {}).get("content", "")
