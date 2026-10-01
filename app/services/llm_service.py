@@ -669,20 +669,16 @@ async def generate_meal_plan(
         "Authorization": f"Bearer {settings.openrouter_api_key}",
         "Content-Type": "application/json",
     }
-    # Prefill the assistant turn with the opening of the JSON object. This
-    # forces models that otherwise "think out loud" (nemotron) to continue the
-    # JSON directly instead of emitting prose reasoning. The prefix is NOT
-    # returned in the response, so we prepend it again before parsing.
-    prefill = '{"days": ['
     payload = {
         "model": settings.openrouter_model,
         "messages": [
             {"role": "system", "content": MEAL_SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
-            {"role": "assistant", "content": prefill},
         ],
         "temperature": 0.2,
-        "max_tokens": 4000,
+        "max_tokens": 3000,
+        # Ask for a strict JSON object response when the model/provider supports it.
+        "response_format": {"type": "json_object"},
     }
 
     try:
@@ -709,16 +705,18 @@ async def generate_meal_plan(
             )
             return None
 
-        content = choices[0].get("message", {}).get("content", "")
+        message = choices[0].get("message", {}) or {}
+        content = message.get("content", "")
+        # Some models put the answer in a 'reasoning' field and leave content
+        # empty; fall back to it so a valid plan is not discarded.
         if not content or not content.strip():
-            logger.warning("OpenRouter returned empty content for meal plan")
+            content = message.get("reasoning", "") or ""
+        if not content or not content.strip():
+            logger.warning(
+                "OpenRouter returned empty content for meal plan: %s",
+                json.dumps(message)[:400],
+            )
             return None
-
-        # Re-attach the prefill unless the model already echoed it, so the
-        # JSON object is complete before parsing.
-        stripped = content.lstrip()
-        if not stripped.startswith("{") and '"days"' not in stripped[:20]:
-            content = prefill + content
 
         parsed = _extract_json(content)
         if parsed is None:
