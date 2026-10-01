@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # OpenRouter LLM
     openrouter_api_key: str = "test_key"
-    openrouter_model: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
+    openrouter_model: str = "qwen/qwen3.8-27b:free"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
     # JWT Authentication
