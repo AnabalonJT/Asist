@@ -1297,14 +1297,10 @@ async def generate_meal_plan(db: AsyncSession, user_id, overrides: dict | None =
     from app.services.llm_service import generate_meal_plan as llm_generate_meal_plan
 
     prompt = build_meal_prompt(inventory, targets, dietary)
-    # The free OpenRouter model is slow and intermittently returns empty/
-    # unparseable answers; retry once before giving up (mirrors the workout
-    # generator).
-    parsed = None
-    for _attempt in range(2):
-        parsed = await llm_generate_meal_plan(prompt, timeout_seconds=120.0)
-        if parsed is not None:
-            break
+    # The reasoning model thinks for ~2-3 min before emitting the JSON, so use a
+    # generous single-attempt timeout (one 200s try rather than two shorter ones
+    # that would double the wait on failure).
+    parsed = await llm_generate_meal_plan(prompt, timeout_seconds=200.0)
     if parsed is None:
         raise LLMError(
             "No pude generar el plan de comidas en este momento (el servicio no "

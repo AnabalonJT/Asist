@@ -443,6 +443,23 @@ def _extract_json(content: str) -> dict | None:
     except json.JSONDecodeError:
         pass
 
+    # 3c-pre) reasoning models (nemotron) emit their chain-of-thought and then the
+    # JSON at the END. Try parsing from the LAST top-level opening token so the
+    # prose preamble (which may itself contain brace-looking text) is dropped.
+    for marker in ('{"days"', "{'days'"):
+        last = text.rfind(marker)
+        if last > 0:
+            candidate = text[last:]
+            try:
+                return json.loads(candidate)
+            except json.JSONDecodeError:
+                try:
+                    closed = _close_truncated_json(candidate)
+                    if closed is not None:
+                        return json.loads(closed)
+                except json.JSONDecodeError:
+                    pass
+
     # 3c) repair a TRUNCATED object: drop any dangling partial token, then close
     # all still-open brackets/braces (in the right order) and retry. This rescues
     # plans that got cut off by the token limit.
@@ -675,10 +692,10 @@ async def generate_meal_plan(
             {"role": "system", "content": MEAL_SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ],
-        "temperature": 0.2,
-        "max_tokens": 3000,
-        # Ask for a strict JSON object response when the model/provider supports it.
-        "response_format": {"type": "json_object"},
+        "temperature": 0.1,
+        # Reasoning models (nemotron-lightning) spend tokens thinking before the
+        # JSON, so give a generous budget to let them finish the object.
+        "max_tokens": 8000,
     }
 
     try:
