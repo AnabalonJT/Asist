@@ -343,6 +343,99 @@ def _detect_fitness_keywords(text: str) -> dict | None:
     }
 
 
+def _detect_strength_keywords(text: str) -> dict | None:
+    """Detect a logged STRENGTH exercise with weight/sets/reps from free text.
+
+    Robust fallback for when the LLM misclassifies or fails. Handles phrases like:
+      - "con 55kg hice 3 series de deadlift"
+      - "hice 3 series de sentadilla con 80kg"
+      - "4x10 press banca 60kg"
+      - "3 series de crunch con 40 kg"
+    Returns a fake LLM ``activity`` response (category="strength") with
+    ``exercise_name`` and ``sets``=[{reps, weight_kg} x N], or ``None``.
+    """
+    import re
+
+    lower = text.lower().strip()
+
+    # Known exercises (es/en synonyms) -> canonical Spanish display name.
+    EXERCISES = {
+        "deadlift": "Peso muerto", "peso muerto": "Peso muerto",
+        "squat": "Sentadilla", "sentadilla": "Sentadilla", "sentadillas": "Sentadilla",
+        "bench": "Press banca", "press banca": "Press banca", "pressbanca": "Press banca",
+        "press de banca": "Press banca", "banca": "Press banca",
+        "crunch": "Crunch", "crunchs": "Crunch", "crunches": "Crunch", "abdominales": "Crunch",
+        "press militar": "Press militar", "overhead press": "Press militar", "ohp": "Press militar",
+        "remo": "Remo", "row": "Remo",
+        "curl": "Curl de biceps", "curl de biceps": "Curl de biceps", "curl de bíceps": "Curl de biceps",
+        "hip thrust": "Hip thrust", "peso muerto rumano": "Peso muerto rumano", "rdl": "Peso muerto rumano",
+        "dominadas": "Dominadas", "pull up": "Dominadas", "pull ups": "Dominadas", "pullup": "Dominadas",
+        "fondos": "Fondos", "dips": "Fondos",
+        "zancadas": "Zancadas", "lunges": "Zancadas",
+        "press inclinado": "Press inclinado", "peck deck": "Aperturas", "aperturas": "Aperturas",
+        "extension de triceps": "Extension de triceps", "triceps": "Extension de triceps",
+    }
+
+    # Must look like a logged set to avoid clashing with routine requests.
+    has_series = re.search(r"(\d+)\s*(?:series?|sets?|x)\b", lower) is not None
+    weight_match = re.search(r"(\d+(?:[.,]\d+)?)\s*kg", lower)
+    done_verb = re.search(r"\bhice\b|\blevant[ée]|\bhaciendo\b", lower) is not None
+
+    # Find which exercise is mentioned (prefer the longest match).
+    found_name = None
+    found_key_len = 0
+    for key, display in EXERCISES.items():
+        if re.search(r"\b" + re.escape(key) + r"\b", lower) and len(key) > found_key_len:
+            found_name = display
+            found_key_len = len(key)
+    if found_name is None:
+        return None
+
+    # Require at least a weight or an explicit "series/sets/x" count so we do not
+    # hijack messages like "quiero hacer sentadillas" (that is a goal, not a log).
+    if not (weight_match or has_series):
+        return None
+    # If the text is clearly a routine-generation request, let fitness handle it.
+    if re.search(r"rutina|gener[aá]|arma|pl[aá]n de (?:gym|entrenamiento)", lower):
+        return None
+
+    # Parse count of sets and reps.
+    sets_count = 1
+    m = re.search(r"(\d+)\s*(?:series?|sets?)\b", lower)
+    if m:
+        sets_count = max(1, min(20, int(m.group(1))))
+    reps = 10  # sensible default when not stated
+    # Patterns like "3x10" or "4 x 12".
+    mx = re.search(r"(\d+)\s*x\s*(\d+)", lower)
+    if mx:
+        sets_count = max(1, min(20, int(mx.group(1))))
+        reps = max(1, min(100, int(mx.group(2))))
+    else:
+        mr = re.search(r"(\d+)\s*(?:reps?|repeticiones?)\b", lower)
+        if mr:
+            reps = max(1, min(100, int(mr.group(1))))
+
+    weight = 0.0
+    if weight_match:
+        weight = float(weight_match.group(1).replace(",", "."))
+
+    sets = [{"reps": reps, "weight_kg": weight} for _ in range(sets_count)]
+
+    return {
+        "intent": "activity",
+        "data": {
+            "activity_type": "weights",
+            "category": "strength",
+            "duration_minutes": None,
+            "distance_km": None,
+            "detail": None,
+            "exercise_name": found_name,
+            "sets": sets,
+            "confidence": 0.9,
+        },
+    }
+
+
 def _detect_meal_keywords(text: str) -> dict | None:
     """
     Detect meal-plan intent from keywords.
@@ -747,6 +840,9 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     # Quick keyword detection for life activities the LLM might reject
     forced_activity = _detect_life_keywords(text)
 
+    # Quick keyword detection for logged strength exercises (weight/sets/reps)
+    forced_strength = _detect_strength_keywords(text)
+
     # Quick keyword detection for fitness/workout routines
     forced_fitness = _detect_fitness_keywords(text)
 
@@ -761,6 +857,8 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
             response = forced_challenge
         elif forced_goal:
             response = forced_goal
+        elif forced_strength:
+            response = forced_strength
         elif forced_activity:
             response = forced_activity
         elif forced_fitness:
@@ -785,6 +883,10 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
     elif intent not in ("goal", "challenge") and forced_goal:
         intent = "goal"
         response = forced_goal
+    # Override: a detected strength log (weight/sets/reps) beats chat/fitness
+    elif intent in ("chat", "fitness") and forced_strength:
+        intent = "activity"
+        response = forced_strength
     # Override if LLM rejected a life activity we detected
     elif intent == "chat" and forced_activity:
         intent = "activity"

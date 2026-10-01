@@ -105,7 +105,11 @@ async def _message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     from app.models.activity import Activity
     from app.models.reminder import Reminder
 
-    from app.routes.telegram import _detect_fitness_keywords, _detect_meal_keywords
+    from app.routes.telegram import (
+        _detect_fitness_keywords,
+        _detect_meal_keywords,
+        _detect_strength_keywords,
+    )
 
     # Quick keyword detection for fitness/workout routines (LLM fallback + override)
     forced_fitness = _detect_fitness_keywords(text)
@@ -113,10 +117,15 @@ async def _message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # Quick keyword detection for meal plans (LLM fallback + override)
     forced_meal = _detect_meal_keywords(text)
 
+    # Quick keyword detection for logged strength exercises (weight/sets/reps)
+    forced_strength = _detect_strength_keywords(text)
+
     response = await interpret_message(text)
 
     if not response:
-        if forced_fitness:
+        if forced_strength:
+            response = forced_strength
+        elif forced_fitness:
             response = forced_fitness
         elif forced_meal:
             response = forced_meal
@@ -126,8 +135,12 @@ async def _message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     intent = response.get("intent", "chat")
 
+    # Override: a detected strength log beats a chat/fitness misclassification.
+    if intent in ("chat", "fitness") and forced_strength:
+        intent = "activity"
+        response = forced_strength
     # Override for fitness routines (only if not already a recognized intent here)
-    if intent not in ("activity", "reminder", "timezone", "fitness", "meal") and forced_fitness:
+    elif intent not in ("activity", "reminder", "timezone", "fitness", "meal") and forced_fitness:
         intent = "fitness"
         response = forced_fitness
     # Override for meal plans (only if not already a recognized intent here)
