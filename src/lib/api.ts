@@ -423,3 +423,59 @@ export const mealsApi = {
   lookupBarcode: (code: string) => api.get<FoodCandidate>(`/meals/barcode/${encodeURIComponent(code)}`),
   searchFood: (q: string) => api.get<FoodCandidate[]>(`/meals/food-search?q=${encodeURIComponent(q)}`),
 }
+
+// ── Goal Wizard ───────────────────────────────────────────────────────────────
+export interface DietPhase {
+  index: number
+  start_weight: number
+  end_weight: number
+  weeks: number
+  kcal: number | null
+  protein_g: number | null
+  fat_g: number | null
+  carbs_g: number | null
+  status: 'active' | 'completed' | 'pending'
+  maintenance: boolean
+}
+
+export interface PhasePlan {
+  phases: DietPhase[]
+  active_phase: DietPhase | null
+  goal_reached: boolean
+  disclaimer: string
+}
+
+export interface WizardState {
+  step: 'profile' | 'goal' | 'equipment' | 'diet' | 'training_days' | 'routine' | 'summary'
+  profile_complete: boolean
+  has_goal: boolean
+  has_plan: boolean
+  has_routine: boolean
+}
+
+export const goalPlanApi = {
+  getState: () => api.get<WizardState>('/goal-plan/state'),
+  putProfile: (d: {
+    weight_kg: number
+    height_cm: number
+    age: number
+    sex?: string | null
+    level: string
+    days_per_week: number
+    minutes_per_session: number
+  }) => api.put('/goal-plan/profile', d),
+  putGoal: (d: { target_weight_kg: number; target_date: string }) =>
+    api.put('/goal-plan/goal', d),
+  putEquipment: (d: { equipment: string[] }) => api.put('/goal-plan/equipment', d),
+  derivePhases: () => api.post<PhasePlan>('/goal-plan/phases/derive'),
+  getPhases: () => api.get<PhasePlan | { message: string }>('/goal-plan/phases'),
+  putTrainingDays: (d: { days_per_week: number }) =>
+    api.put('/goal-plan/training-days', d),
+  generateRoutine: () => api.post<WorkoutPlan>('/goal-plan/routine/generate'),
+  putRoutine: (d: { structure: WorkoutDay[] }) =>
+    api.put<WorkoutPlan>('/goal-plan/routine', d),
+  putActiveTargets: (d: { kcal: number; protein_g: number; fat_g: number; carbs_g: number }) =>
+    api.put<PhasePlan>('/goal-plan/phases/active/targets', d),
+  postWeight: (d: { weight_kg: number; entry_date: string }) =>
+    api.post<PhasePlan | { message: string }>('/goal-plan/weight', d),
+}

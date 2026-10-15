@@ -1,0 +1,374 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Crear `app/models/diet_phase_plan.py`": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031838211
+      },
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031853664
+      },
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031920088
+      }
+    ],
+    "1.2 Añadir relationship al modelo `User` y registrar el modelo": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031838459
+      },
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031925337
+      },
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032019299
+      }
+    ],
+    "2.1 Crear migración Alembic para `diet_phase_plans`": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031838779
+      },
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032025249
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032093804
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032186853
+      }
+    ],
+    "3.1 Crear `app/services/goal_wizard_service.py` con constantes y excepciones": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031839155
+      },
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032026038
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032099608
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032185836
+      }
+    ],
+    "3.2 Implementar `is_profile_complete` y `resolve_wizard_step` (puras)": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031839436
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032200355
+      }
+    ],
+    "3.4 Implementar `split_into_phases` (pura)": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031839735
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032201861
+      }
+    ],
+    "3.6 Implementar `derive_phase_targets` y `maintenance_phase` (puras)": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031840068
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032202765
+      }
+    ],
+    "3.9 Implementar `advance_phase_on_weight` (pura)": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031840263
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032203675
+      }
+    ],
+    "4.1 Implementar `derive_and_persist_plan` y `get_active_phase_plan`": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031840535
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032426940
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032608358
+      }
+    ],
+    "4.4 Implementar `register_weight_and_advance` y `edit_active_phase_targets`": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031840697
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032427880
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032606390
+      }
+    ],
+    "4.5 Implementar `generate_routine` (wrapper de reuso)": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031840903
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032428603
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032607500
+      }
+    ],
+    "5.1 Crear `app/routes/goal_plan.py` con schemas Pydantic y endpoints": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031841086
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032616732
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032766571
+      }
+    ],
+    "5.2 Registrar el router en `app/main.py`": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031841292
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032773627
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032827512
+      }
+    ],
+    "6. Checkpoint backend": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031841538
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032832321
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032858778
+      }
+    ],
+    "8.1 Añadir `goalPlanApi` e interfaces TS a `src/lib/api.ts`": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031841721
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032866817
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032995541
+      }
+    ],
+    "9.1 Crear `src/components/CookingAnimation.tsx`": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031841899
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032865682
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032996147
+      }
+    ],
+    "10.1 Crear `src/components/GoalWizard.tsx` con el reducer y los pasos": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031842101
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792033002240
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792033334374
+      }
+    ],
+    "11.1 Añadir el botón \"Realizar objetivo\" en `src/pages/FitnessPage.tsx`": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031842309
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792033335130
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792033429275
+      }
+    ],
+    "12. Checkpoint final": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792031842565
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792033429477
+      },
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792033455503
+      }
+    ],
+    "1. Modelo de datos y relaciones": [
+      {
+        "executionId": "cb33509f-818e-4491-aeef-cea876671c6c",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032019539
+      }
+    ],
+    "2. Migración de base de datos": [
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032187071
+      }
+    ],
+    "4. Capa de servicio: funciones async con DB": [
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032608744
+      }
+    ],
+    "5. Endpoints REST `/api/goal-plan`": [
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032827699
+      }
+    ],
+    "8. Frontend: cliente API": [
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032995902
+      }
+    ],
+    "9. Frontend: animación del paso de dieta": [
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792032996487
+      }
+    ],
+    "10. Frontend: componente GoalWizard (máquina de estados)": [
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792033334831
+      }
+    ],
+    "11. Frontend: cableado en FitnessPage": [
+      {
+        "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792033429654
+      }
+    ]
+  }
+}

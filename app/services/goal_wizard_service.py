@@ -375,3 +375,218 @@ def advance_phase_on_weight(
     maint["index"] = phases[-1]["index"] + 1
     phases.append(maint)
     return phases
+
+
+# ── Async DB functions ───────────────────────────────────────────────────────
+import json
+from datetime import date
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.diet_phase_plan import DietPhasePlan
+from app.models.workout_plan import WorkoutPlan
+
+
+def _profile_to_dict(profile) -> dict:
+    """Build a plain dict from a FitnessProfile ORM object for the pure functions.
+
+    The pure helpers expect dicts with body data, availability, goal and
+    equipment keys. ``equipment`` is parsed from the profile's JSON column.
+    """
+    return {
+        "weight_kg": profile.weight_kg,
+        "height_cm": profile.height_cm,
+        "age": profile.age,
+        "sex": profile.sex,
+        "level": profile.level,
+        "days_per_week": profile.days_per_week,
+        "minutes_per_session": profile.minutes_per_session,
+        "goal_type": profile.goal_type,
+        "target_weight_kg": profile.target_weight_kg,
+        "target_date": profile.target_date,
+        "equipment": profile.equipment_list(),
+    }
+
+
+async def derive_and_persist_plan(db: AsyncSession, user_id: int) -> DietPhasePlan:
+    """Derive the progressive A→B phase plan from the user's profile+goal and
+    persist it as the new active ``DietPhasePlan``.
+
+    Loads the FitnessProfile; a missing profile or an incomplete weight-target
+    goal raises ``GoalRequiredError`` (Spanish). Computes the global target rate,
+    splits the journey into phases, derives per-phase nutrition targets,
+    deactivates any previous active plan and persists a new active plan
+    (Req 5.1, 5.6, 6.1, 6.7, 11.1, 11.2, 11.3).
+    """
+    profile = await fitness_service._get_profile(db, user_id)
+    if (profile is None
+            or profile.goal_type != "weight_target"
+            or profile.target_weight_kg is None
+            or not profile.target_date):
+        raise GoalRequiredError(
+            "Primero completa tu perfil y objetivo para generar tu plan."
+        )
+
+    # Weeks until the target date, floored at MIN_PHASE_WEEKS.
+    target = fitness_service._parse_iso_date(profile.target_date)
+    weeks = max((target - date.today()).days / 7.0, MIN_PHASE_WEEKS)
+
+    # Global target rate drives how the journey is fractioned into phases.
+    target_rate = fitness_service.compute_target_rate(
+        profile.weight_kg, profile.target_weight_kg, weeks
+    )
+
+    profile_dict = _profile_to_dict(profile)
+    phases = split_into_phases(
+        profile.weight_kg,
+        profile.target_weight_kg,
+        target_rate["rate_kg_per_week"],
+    )
+    phases = [derive_phase_targets(profile_dict, phase) for phase in phases]
+
+    # Deactivate any previous active plan (at most one active per user).
+    existing = await db.execute(
+        select(DietPhasePlan).where(
+            DietPhasePlan.user_id == user_id,
+            DietPhasePlan.active == True,  # noqa: E712
+        )
+    )
+    for prev in existing.scalars().all():
+        prev.active = False
+
+    plan = DietPhasePlan(
+        user_id=user_id,
+        start_weight_kg=profile.weight_kg,
+        target_weight_kg=profile.target_weight_kg,
+        goal_reached=False,
+        phases=json.dumps(phases, ensure_ascii=False),
+        active=True,
+    )
+    db.add(plan)
+    await db.flush()
+    return plan
+
+
+async def get_active_phase_plan(db: AsyncSession,
+                                user_id: int) -> DietPhasePlan | None:
+    """Return the user's active ``DietPhasePlan`` (most recent) or ``None``
+    (Req 11.2, 11.3).
+    """
+    result = await db.execute(
+        select(DietPhasePlan)
+        .where(
+            DietPhasePlan.user_id == user_id,
+            DietPhasePlan.active == True,  # noqa: E712
+        )
+        .order_by(DietPhasePlan.created_at.desc())
+    )
+    return result.scalars().first()
+
+
+async def register_weight_and_advance(
+    db: AsyncSession, user_id: int, weight_kg: float, entry_date: str,
+) -> dict:
+    """Register a weigh-in and advance the active phase plan accordingly.
+
+    Reuses ``fitness_service.add_weight_entry`` (validates 30..300 kg, raising a
+    Spanish ``ValidationError`` on invalid input, and syncs the profile's current
+    weight). If there is no active phase plan, returns a Spanish message dict. On
+    success, runs the pure ``advance_phase_on_weight`` and persists the updated
+    phases, flagging ``goal_reached`` when a maintenance phase becomes active
+    (Req 7.1-7.6).
+    """
+    # Validates range and updates the profile's current weight (Spanish errors).
+    await fitness_service.add_weight_entry(db, user_id, weight_kg, entry_date)
+
+    plan = await get_active_phase_plan(db, user_id)
+    if plan is None:
+        return {
+            "message": "No tienes un plan de fases activo. "
+                       "Inicia el asistente para crearlo."
+        }
+
+    # Elapsed weeks of the active phase. We do not persist a per-phase start_date
+    # yet, so we default to 0.0 — the extension path only triggers when elapsed
+    # weeks >= the phase's planned weeks, so 0.0 never wrongly extends a phase.
+    active = plan.active_phase()
+    active_elapsed_weeks = 0.0
+    if active and active.get("start_date"):
+        try:
+            started = fitness_service._parse_iso_date(active["start_date"])
+            active_elapsed_weeks = max((date.today() - started).days / 7.0, 0.0)
+        except ValidationError:
+            active_elapsed_weeks = 0.0
+
+    profile = await fitness_service._get_profile(db, user_id)
+    profile_dict = _profile_to_dict(profile) if profile is not None else {}
+
+    updated = advance_phase_on_weight(
+        profile_dict, plan.phases_list(), weight_kg, active_elapsed_weeks
+    )
+
+    # The journey is complete when the active phase is a maintenance phase.
+    goal_reached = any(
+        p.get("maintenance") and p.get("status") == "active" for p in updated
+    )
+
+    plan.phases = json.dumps(updated, ensure_ascii=False)
+    plan.goal_reached = goal_reached
+    await db.flush()
+
+    active_phase = next(
+        (p for p in updated if p.get("status") == "active"), None
+    )
+    return {
+        "phases": updated,
+        "active_phase": active_phase,
+        "goal_reached": goal_reached,
+        "disclaimer": DISCLAIMER,
+    }
+
+
+async def edit_active_phase_targets(
+    db: AsyncSession, user_id: int,
+    kcal: float, protein_g: float, fat_g: float, carbs_g: float,
+) -> DietPhasePlan:
+    """Edit the nutrition targets of the active phase in the active plan.
+
+    Validates the targets FIRST via ``meal_service.validate_manual_targets``
+    (raises a Spanish ``ValidationError`` on invalid input, propagated to the
+    router). Validate-before-mutate: on invalid targets the plan is untouched. A
+    missing active plan raises ``GoalRequiredError`` (Spanish) (Req 10.2, 10.3).
+    """
+    # Validate first — on failure the plan is never loaded/mutated.
+    meal_service.validate_manual_targets(kcal, protein_g, fat_g, carbs_g)
+
+    plan = await get_active_phase_plan(db, user_id)
+    if plan is None:
+        raise GoalRequiredError(
+            "No tienes un plan de fases activo. Inicia el asistente para crearlo."
+        )
+
+    phases = plan.phases_list()
+    for phase in phases:
+        if phase.get("status") == "active":
+            phase["kcal"] = kcal
+            phase["protein_g"] = protein_g
+            phase["fat_g"] = fat_g
+            phase["carbs_g"] = carbs_g
+            break
+
+    plan.phases = json.dumps(phases, ensure_ascii=False)
+    await db.flush()
+    return plan
+
+
+async def generate_routine(db: AsyncSession, user_id: int) -> WorkoutPlan:
+    """Generate the workout routine (thin wrapper over
+    ``fitness_service.generate_workout_plan``).
+
+    Any exception (``LLMError``, ``GoalRequiredError``, ``EquipmentError``)
+    propagates UNCHANGED so the router can map it to a Spanish message with a
+    retry; on failure all prior state (profile, goal, phase plan, previous
+    routine) is preserved by ``generate_workout_plan`` itself (Req 9.1, 9.3,
+    9.4, 9.6).
+    """
+    return await fitness_service.generate_workout_plan(db, user_id, overrides=None)

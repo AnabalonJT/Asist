@@ -15,6 +15,7 @@ from app.models.user_food_inventory import UserFoodInventory
 from app.models.dietary_profile import DietaryProfile
 from app.models.nutrition_targets import NutritionTargets
 from app.models.meal_plan import MealPlan
+from app.models.diet_phase_plan import DietPhasePlan
 
 __all__ = [
     "User",
@@ -33,4 +34,5 @@ __all__ = [
     "DietaryProfile",
     "NutritionTargets",
     "MealPlan",
+    "DietPhasePlan",
 ]

@@ -87,8 +87,8 @@ Backend en Python 3.11 (FastAPI async + SQLAlchemy 2.0). Frontend en TypeScript/
     - **Property 10: Fase de mantenimiento al completar el trayecto**
     - **Validates: Requirements 7.5**
 
-- [ ] 4. Capa de servicio: funciones async con DB
-  - [ ] 4.1 Implementar `derive_and_persist_plan` y `get_active_phase_plan`
+- [x] 4. Capa de servicio: funciones async con DB
+  - [x] 4.1 Implementar `derive_and_persist_plan` y `get_active_phase_plan`
     - `derive_and_persist_plan(db, user_id)`: carga perfil+objetivo (falta → `GoalRequiredError` es); calcula el `target_rate` global con `compute_target_rate`; `split_into_phases`; `derive_phase_targets` por fase; desactiva el plan activo previo; persiste un nuevo `DietPhasePlan` activo
     - `get_active_phase_plan(db, user_id)`: devuelve el `DietPhasePlan` activo o None
     - _Requirements: 5.1, 5.6, 6.1, 6.7, 11.1, 11.2, 11.3_
@@ -101,12 +101,12 @@ Backend en Python 3.11 (FastAPI async + SQLAlchemy 2.0). Frontend en TypeScript/
     - **Property 13: Consulta con fases ordenadas por índice**
     - **Validates: Requirements 11.2**
 
-  - [ ] 4.4 Implementar `register_weight_and_advance` y `edit_active_phase_targets`
+  - [x] 4.4 Implementar `register_weight_and_advance` y `edit_active_phase_targets`
     - `register_weight_and_advance(db, user_id, weight_kg, entry_date)`: reutiliza `fitness_service.add_weight_entry`; calcula las semanas transcurridas de la fase activa; llama `advance_phase_on_weight`; persiste las fases actualizadas; devuelve el plan + descargo
     - `edit_active_phase_targets(db, user_id, kcal, protein_g, fat_g, carbs_g)`: valida con `meal_service.validate_manual_targets`; si es válido persiste las metas en la fase activa
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 10.2, 10.3_
 
-  - [ ] 4.5 Implementar `generate_routine` (wrapper de reuso)
+  - [x] 4.5 Implementar `generate_routine` (wrapper de reuso)
     - `generate_routine(db, user_id)`: wrapper delgado sobre `fitness_service.generate_workout_plan(db, user_id)`; ante fallo del LLM, la excepción (`LLMError`) propaga sin tocar el estado para que el router la traduzca a mensaje es con reintento
     - _Requirements: 9.1, 9.3, 9.4, 9.6_
 
@@ -114,8 +114,8 @@ Backend en Python 3.11 (FastAPI async + SQLAlchemy 2.0). Frontend en TypeScript/
     - **Property 14: Preservación del estado ante fallo de generación de rutina** (mock del LLM: timeout/error/None/JSON inválido)
     - **Validates: Requirements 9.3, 9.4**
 
-- [ ] 5. Endpoints REST `/api/goal-plan`
-  - [ ] 5.1 Crear `app/routes/goal_plan.py` con schemas Pydantic y endpoints
+- [x] 5. Endpoints REST `/api/goal-plan`
+  - [x] 5.1 Crear `app/routes/goal_plan.py` con schemas Pydantic y endpoints
     - Router con `current_user = Depends(get_current_user)` en todos; filtrado siempre por `current_user.id` salvo admin
     - Schemas: `WizardStateOut`, `ProfileIn/FitnessProfileOut`, `GoalIn/GoalOut` (con `target_rate` + descargo), `EquipmentIn`, `PhasePlanOut` (con descargo), `TrainingDaysIn`, `WorkoutPlanIn/WorkoutPlanOut` (con descargo), `TargetsIn`, `WeightIn`
     - Endpoints: `GET /state`, `PUT /profile`, `PUT /goal`, `PUT /equipment`, `POST /phases/derive`, `GET /phases`, `PUT /training-days`, `POST /routine/generate`, `PUT /routine`, `PUT /phases/active/targets`, `POST /weight`
@@ -123,7 +123,7 @@ Backend en Python 3.11 (FastAPI async + SQLAlchemy 2.0). Frontend en TypeScript/
     - Traducción de excepciones internas a `HTTPException` con `detail` en español (tabla Error Handling): `ValidationError`→400/422, `GoalRequiredError`→400, `EquipmentError`→400, `LLMError`→502/503; plan de fases ausente → 200 con `{message}`
     - _Requirements: 1.2, 1.6, 2.2, 2.3, 3.2, 3.3, 3.4, 4.2, 4.3, 5, 6, 7, 8.2, 8.3, 9.1, 9.3, 9.6, 10.2, 10.3, 10.4, 10.5, 11.1, 11.2, 11.3, 12.1, 12.2, 12.3, 12.4, 12.5_
 
-  - [ ] 5.2 Registrar el router en `app/main.py`
+  - [x] 5.2 Registrar el router en `app/main.py`
     - `from app.routes import goal_plan` e `include_router(goal_plan.router, prefix="/api/goal-plan", tags=["GoalWizard"])`
     - _Requirements: 12.1, 12.2_
 
@@ -143,7 +143,7 @@ Backend en Python 3.11 (FastAPI async + SQLAlchemy 2.0). Frontend en TypeScript/
     - **Property 16: Descargo médico en respuestas con metas o rutina**
     - **Validates: Requirements 12.5**
 
-- [ ] 6. Checkpoint backend
+- [x] 6. Checkpoint backend
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 7. Tests de ejemplo e integración del backend
@@ -163,19 +163,19 @@ Backend en Python 3.11 (FastAPI async + SQLAlchemy 2.0). Frontend en TypeScript/
     - `POST /weight` que alcanza el end de la fase activa avanza a la siguiente; sobrepaso múltiple; progreso insuficiente extiende; completar la última produce mantenimiento
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
 
-- [ ] 8. Frontend: cliente API
-  - [ ] 8.1 Añadir `goalPlanApi` e interfaces TS a `src/lib/api.ts`
+- [x] 8. Frontend: cliente API
+  - [x] 8.1 Añadir `goalPlanApi` e interfaces TS a `src/lib/api.ts`
     - Interfaces: `DietPhase`, `PhasePlan`, `WizardState` (reutilizar `FitnessProfile`, `TargetRate`, `WorkoutPlan`, `WorkoutDay` existentes)
     - `goalPlanApi`: `getState`, `putProfile`, `putGoal`, `putEquipment`, `derivePhases`, `getPhases`, `putTrainingDays`, `generateRoutine`, `putRoutine`, `putActiveTargets`, `postWeight`
     - _Requirements: 1.2, 3.2, 4.2, 6.7, 8.2, 9.1, 10.2, 10.4_
 
-- [ ] 9. Frontend: animación del paso de dieta
-  - [ ] 9.1 Crear `src/components/CookingAnimation.tsx`
+- [x] 9. Frontend: animación del paso de dieta
+  - [x] 9.1 Crear `src/components/CookingAnimation.tsx`
     - Animación CSS/SVG de ollas/comida con progreso; detecta `window.matchMedia('(prefers-reduced-motion: reduce)')` y, si está activa, muestra una alternativa estática equivalente sin movimiento
     - _Requirements: 6.5, 6.6_
 
-- [ ] 10. Frontend: componente GoalWizard (máquina de estados)
-  - [ ] 10.1 Crear `src/components/GoalWizard.tsx` con el reducer y los pasos
+- [x] 10. Frontend: componente GoalWizard (máquina de estados)
+  - [x] 10.1 Crear `src/components/GoalWizard.tsx` con el reducer y los pasos
     - `useReducer` que modela el `WizardState`; al montar llama `getState()` para posicionarse en el primer paso incompleto (reanudación); retroceder no descarta datos capturados
     - Sub-pasos: `ProfileStep`, `GoalStep`, `EquipmentStep` (checkboxes del `EQUIPMENT_CATALOG`), `TrainingDaysStep` (muestran `detail` de error en español y conservan lo ingresado); `DietStep` (dispara `derivePhases`, muestra `CookingAnimation` mientras carga); `RoutineStep` (dispara `generateRoutine`, progreso incremental "Generando rutina... Día 1... Día 2...", botón "Reintentar" en es ante fallo sin perder estado); `SummaryStep` (metas por fase + rutina, edición con `putActiveTargets` y `putRoutine`)
     - Estilo Tailwind dark con los tokens establecidos (`card`, `input`, `btn-primary`, `btn-ghost`, `text-text-primary/secondary/dim`, `accent`, `success`, `font-display`, helper `.display`)
@@ -185,12 +185,12 @@ Backend en Python 3.11 (FastAPI async + SQLAlchemy 2.0). Frontend en TypeScript/
     - Botón "Realizar objetivo" presente en FitnessPage; pasos muestran errores en español y conservan datos; `DietStep` anima mientras carga y respeta `prefers-reduced-motion`; `RoutineStep` muestra progreso incremental; `SummaryStep` permite editar
     - _Requirements: 1.1, 1.4, 2.1, 3.1, 4.1, 6.5, 6.6, 9.2, 10.1_
 
-- [ ] 11. Frontend: cableado en FitnessPage
-  - [ ] 11.1 Añadir el botón "Realizar objetivo" en `src/pages/FitnessPage.tsx`
+- [x] 11. Frontend: cableado en FitnessPage
+  - [x] 11.1 Añadir el botón "Realizar objetivo" en `src/pages/FitnessPage.tsx`
     - Botón prominente en español que abre el `GoalWizard` (modal o vista a pantalla completa); al cerrarse, refresca el estado de la página
     - _Requirements: 1.1_
 
-- [ ] 12. Checkpoint final
+- [x] 12. Checkpoint final
   - Ensure all tests pass, ask the user if questions arise. Ejecutar `pytest tests/` y `cd src && npm run build`.
 
 ## Notes

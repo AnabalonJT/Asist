@@ -8,6 +8,7 @@ import {
   Adherence,
 } from '../lib/api'
 import { WeightChart } from '../components/WeightChart'
+import { GoalWizard } from '../components/GoalWizard'
 
 type EquipmentItem = { id: string; label: string; hint: string }
 
@@ -103,6 +104,9 @@ export function FitnessPage() {
 
   // ── Loading ──
   const [loading, setLoading] = useState(true)
+
+  // ── Goal wizard ──
+  const [wizardOpen, setWizardOpen] = useState(false)
 
   useEffect(() => {
     loadProfile()
@@ -514,11 +518,35 @@ export function FitnessPage() {
         </p>
       </div>
 
+      <div className="card bg-gradient-to-br from-accent/15 to-transparent border-accent/30">
+        <button
+          onClick={() => setWizardOpen(true)}
+          className="btn-primary w-full font-display text-base py-3"
+        >
+          Realizar objetivo
+        </button>
+        <p className="text-sm text-text-secondary mt-2 text-center">
+          Te guiamos paso a paso: perfil, objetivo, dieta por fases y rutina.
+        </p>
+      </div>
+
       {sectionPerfil}
       {sectionObjetivo}
       {sectionPeso}
       {sectionRutina}
       {sectionAdherencia}
+
+      {wizardOpen && (
+        <GoalWizard
+          onClose={() => {
+            setWizardOpen(false)
+            loadProfile()
+            loadPlan()
+            loadProgress()
+            loadAdherence()
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from app.models.dietary_profile import DietaryProfile
     from app.models.nutrition_targets import NutritionTargets
     from app.models.meal_plan import MealPlan
+    from app.models.diet_phase_plan import DietPhasePlan
 
 
 class User(Base):
@@ -64,5 +65,8 @@ class User(Base):
         back_populates="user", cascade="all, delete-orphan", uselist=False
     )
     meal_plans: Mapped[list["MealPlan"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    diet_phase_plans: Mapped[list["DietPhasePlan"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
