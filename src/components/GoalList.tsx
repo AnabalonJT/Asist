@@ -45,7 +45,7 @@ export function GoalList() {
   if (goals.length === 0) {
     return (
       <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-2">🎯 Metas</h2>
+        <h2 className="font-display text-lg font-semibold text-text-primary mb-2">Metas</h2>
         <div className="py-6 text-center">
           <p className="text-2xl mb-2">🎯</p>
           <p className="text-sm text-text-secondary">No tienes metas activas</p>
@@ -65,7 +65,7 @@ export function GoalList() {
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-text-primary">🎯 Metas</h2>
+        <h2 className="font-display text-lg font-semibold text-text-primary">Metas</h2>
         {goals.length > 0 && (
           <span className="badge bg-success/10 text-success border border-success/20">
             {completedCount}/{goals.length} cumplidas

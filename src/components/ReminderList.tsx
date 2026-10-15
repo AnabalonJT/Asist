@@ -43,7 +43,7 @@ export function ReminderList() {
   if (reminders.length === 0) {
     return (
       <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-2">⏰ Recordatorios</h2>
+        <h2 className="font-display text-lg font-semibold text-text-primary mb-2">Recordatorios</h2>
         <p className="text-xs text-text-secondary py-4 text-center">
           No tienes recordatorios. Crea uno desde Telegram:<br />
           <span className="text-text-dim italic">"Recuérdame meditar a las 8:00"</span>
@@ -76,7 +76,7 @@ export function ReminderList() {
 
   return (
     <div className="card">
-      <h2 className="text-sm font-semibold text-text-primary mb-3">⏰ Recordatorios</h2>
+      <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Recordatorios</h2>
       <div className="space-y-2">
         {reminders.map((r) => (
           <div

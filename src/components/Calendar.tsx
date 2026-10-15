@@ -56,7 +56,7 @@ export function Calendar() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <button onClick={prevMonth} className="btn-ghost py-1 px-2 text-lg">‹</button>
-        <h2 className="text-sm font-semibold text-text-primary capitalize">{monthName}</h2>
+        <h2 className="font-display text-lg font-semibold text-text-primary capitalize">{monthName}</h2>
         <button onClick={nextMonth} className="btn-ghost py-1 px-2 text-lg">›</button>
       </div>
 

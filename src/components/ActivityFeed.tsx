@@ -53,7 +53,7 @@ export function ActivityFeed() {
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-text-primary">Actividades recientes</h2>
+        <h2 className="font-display text-lg font-semibold text-text-primary">Actividades recientes</h2>
         <span className="badge bg-bg-elevated text-text-dim">{filtered.length}</span>
       </div>
 

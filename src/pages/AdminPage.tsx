@@ -56,8 +56,8 @@ export function AdminPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-text-primary">🛡️ Administración</h1>
-        <p className="text-text-secondary text-xs mt-0.5">Uso general de la aplicación</p>
+        <h1 className="font-display text-2xl font-semibold text-text-primary leading-none">Administración</h1>
+        <p className="text-text-secondary text-sm mt-1">Uso general de la aplicación</p>
       </div>
 
       {/* Overview stat cards */}
@@ -69,7 +69,7 @@ export function AdminPage() {
             </div>
             <div>
               <p className="text-xs text-text-secondary mb-0.5">{label}</p>
-              <p className="text-xl font-semibold text-text-primary font-mono">
+              <p className="display text-2xl text-text-primary">
                 {overview ? overview[key] : 0}
               </p>
             </div>
@@ -79,8 +79,8 @@ export function AdminPage() {
 
       {/* Per-user list */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">
-          👥 Usuarios ({users.length})
+        <h2 className="font-display text-lg font-semibold text-text-primary mb-3">
+          Usuarios ({users.length})
         </h2>
 
         <div className="overflow-x-auto">

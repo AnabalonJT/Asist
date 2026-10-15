@@ -43,12 +43,12 @@ export function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-text-primary">⚙️ Configuración</h1>
+        <h1 className="font-display text-2xl font-semibold text-text-primary leading-none">Configuración</h1>
       </div>
 
       {/* Profile */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">👤 Perfil</h2>
+        <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Perfil</h2>
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-sm text-text-secondary">Email</span>
@@ -69,7 +69,7 @@ export function SettingsPage() {
 
       {/* Preferences */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">🔧 Preferencias</h2>
+        <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Preferencias</h2>
         <div className="space-y-4">
           {/* Calories toggle */}
           <div className="flex items-center justify-between">
@@ -93,7 +93,7 @@ export function SettingsPage() {
 
       {/* Change password */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">🔒 Cambiar contraseña</h2>
+        <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Cambiar contraseña</h2>
         <form onSubmit={changePassword} className="space-y-3">
           <input
             type="password"
