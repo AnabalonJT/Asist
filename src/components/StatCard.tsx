@@ -1,20 +1,24 @@
+import type { ReactNode } from 'react'
+
 interface Props {
   label: string
   value: string | number
   sub?: string
-  icon: string
+  icon: ReactNode
 }
 
+// A quiet supporting stat (secondary to the Dashboard hero). The value uses the
+// condensed display face; the icon is an inline SVG, not an emoji.
 export function StatCard({ label, value, sub, icon }: Props) {
   return (
-    <div className="card flex items-center gap-4">
-      <div className="w-10 h-10 rounded-xl bg-accent-glow flex items-center justify-center text-xl flex-shrink-0">
+    <div className="card flex items-center gap-3 p-4">
+      <div className="w-9 h-9 rounded-lg bg-bg-elevated text-text-secondary flex items-center justify-center flex-shrink-0">
         {icon}
       </div>
-      <div>
-        <p className="text-xs text-text-secondary mb-0.5">{label}</p>
-        <p className="text-xl font-semibold text-text-primary font-mono">{value}</p>
-        {sub && <p className="text-xs text-text-dim mt-0.5">{sub}</p>}
+      <div className="min-w-0">
+        <p className="text-[11px] text-text-secondary mb-0.5 truncate">{label}</p>
+        <p className="display text-2xl text-text-primary">{value}</p>
+        {sub && <p className="text-[11px] text-text-dim mt-0.5">{sub}</p>}
       </div>
     </div>
   )
