@@ -268,333 +268,257 @@ export function FitnessPage() {
     return <div className="text-sm text-text-dim py-8 text-center">Cargando...</div>
   }
 
+  // Section blocks defined once, then arranged in the desired order below:
+  // Perfil -> Objetivo -> Peso y progreso -> Rutina -> Adherencia.
+
+  const sectionPerfil = (
+    <div className="card">
+      <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Perfil</h2>
+      <form onSubmit={saveProfile} className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-text-secondary">Peso (kg)</label>
+            <input type="number" step="0.1" className="input" value={profile.weight_kg}
+              onChange={(e) => setProfile({ ...profile, weight_kg: e.target.value })} required />
+          </div>
+          <div>
+            <label className="text-xs text-text-secondary">Altura (cm)</label>
+            <input type="number" step="0.1" className="input" value={profile.height_cm}
+              onChange={(e) => setProfile({ ...profile, height_cm: e.target.value })} required />
+          </div>
+          <div>
+            <label className="text-xs text-text-secondary">Edad</label>
+            <input type="number" className="input" value={profile.age}
+              onChange={(e) => setProfile({ ...profile, age: e.target.value })} required />
+          </div>
+          <div>
+            <label className="text-xs text-text-secondary">Sexo</label>
+            <select className="input" value={profile.sex}
+              onChange={(e) => setProfile({ ...profile, sex: e.target.value })}>
+              <option value="">Sin especificar</option>
+              <option value="male">Masculino</option>
+              <option value="female">Femenino</option>
+              <option value="other">Otro</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-text-secondary">Nivel</label>
+            <select className="input" value={profile.level}
+              onChange={(e) => setProfile({ ...profile, level: e.target.value })}>
+              <option value="principiante">Principiante</option>
+              <option value="intermedio">Intermedio</option>
+              <option value="avanzado">Avanzado</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-text-secondary">Días/semana</label>
+            <input type="number" min={1} max={7} className="input" value={profile.days_per_week}
+              onChange={(e) => setProfile({ ...profile, days_per_week: e.target.value })} required />
+          </div>
+          <div>
+            <label className="text-xs text-text-secondary">Minutos/sesión</label>
+            <input type="number" min={10} max={240} className="input" value={profile.minutes_per_session}
+              onChange={(e) => setProfile({ ...profile, minutes_per_session: e.target.value })} required />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs text-text-secondary">Equipo disponible</label>
+          <p className="text-[11px] text-text-dim mb-2">
+            Marca solo lo que tienes. Si tienes acceso a un gimnasio con todo, marca "Gimnasio completo".
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+            {EQUIPMENT_CATALOG.map((item) => (
+              <label key={item.id} className="flex items-start gap-2 text-sm text-text-primary cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={profile.equipment.includes(item.id)}
+                  onChange={() => toggleEquipment(item.id)} />
+                <span>
+                  <span className="block leading-tight">{item.label}</span>
+                  <span className="block text-[11px] text-text-dim leading-tight">{item.hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {profileErr && <p className="text-xs text-danger">{profileErr}</p>}
+        {profileMsg && <p className="text-xs text-success">{profileMsg}</p>}
+
+        <button type="submit" className="btn-primary w-full text-sm" disabled={savingProfile}>
+          {savingProfile ? 'Guardando...' : 'Guardar perfil'}
+        </button>
+      </form>
+    </div>
+  )
+
+  const sectionObjetivo = (
+    <div className="card">
+      <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Objetivo</h2>
+      <form onSubmit={saveGoal} className="space-y-3">
+        <div>
+          <label className="text-xs text-text-secondary">Tipo de objetivo</label>
+          <select className="input" value={goalType} onChange={(e) => setGoalType(e.target.value)}>
+            {GOAL_TYPES.map((g) => (
+              <option key={g.value} value={g.value}>{g.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {goalType === 'weight_target' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-text-secondary">Peso objetivo (kg)</label>
+              <input type="number" step="0.1" className="input" value={targetWeight}
+                onChange={(e) => setTargetWeight(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary">Fecha objetivo</label>
+              <input type="date" className="input" value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)} />
+            </div>
+          </div>
+        )}
+
+        {goalType === 'performance' && (
+          <div>
+            <label className="text-xs text-text-secondary">Descripción de la marca</label>
+            <input type="text" maxLength={200} className="input" placeholder="Ej. correr 10 km en 50 min"
+              value={performanceTarget} onChange={(e) => setPerformanceTarget(e.target.value)} />
+          </div>
+        )}
+
+        {goalErr && <p className="text-xs text-danger">{goalErr}</p>}
+        {goalMsg && <p className="text-xs text-success">{goalMsg}</p>}
+
+        <button type="submit" className="btn-primary w-full text-sm" disabled={savingGoal}>
+          {savingGoal ? 'Guardando...' : 'Guardar objetivo'}
+        </button>
+      </form>
+
+      {goalResult?.target_rate && (
+        <div className="mt-4 border-t border-bg-border pt-3">
+          <div className="flex items-baseline gap-2">
+            <span className="display text-3xl text-accent">{goalResult.target_rate.rate_kg_per_week}</span>
+            <span className="text-sm text-text-secondary">kg/semana ({goalResult.target_rate.direction})</span>
+          </div>
+          <p className="text-sm text-text-secondary mt-1">
+            {goalResult.target_rate.daily_kcal_delta} kcal/día
+          </p>
+          {goalResult.target_rate.warning && goalResult.target_rate.warning_message && (
+            <p className="text-xs text-danger mt-1">{goalResult.target_rate.warning_message}</p>
+          )}
+          <p className="text-xs text-text-dim mt-1">{goalResult.target_rate.disclaimer}</p>
+        </div>
+      )}
+    </div>
+  )
+
+  const sectionPeso = (
+    <div className="card">
+      <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Peso y progreso</h2>
+      <form onSubmit={saveWeight} className="flex gap-2 items-end mb-4">
+        <div className="flex-1">
+          <label className="text-xs text-text-secondary">Peso (kg)</label>
+          <input type="number" step="0.1" className="input" value={weightVal}
+            onChange={(e) => setWeightVal(e.target.value)} required />
+        </div>
+        <div className="flex-1">
+          <label className="text-xs text-text-secondary">Fecha</label>
+          <input type="date" className="input" value={weightDate}
+            onChange={(e) => setWeightDate(e.target.value)} required />
+        </div>
+        <button type="submit" className="btn-primary text-sm" disabled={savingWeight}>
+          {savingWeight ? '...' : 'Registrar'}
+        </button>
+      </form>
+
+      {weightErr && <p className="text-xs text-danger mb-2">{weightErr}</p>}
+
+      <WeightChart series={progress?.series ?? []} targetWeight={progress?.target_weight_kg} />
+    </div>
+  )
+
+  const sectionRutina = (
+    <div className="card">
+      <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Rutina</h2>
+      <button onClick={generatePlan} className="btn-primary w-full text-sm mb-3" disabled={generating}>
+        {generating ? 'Generando...' : 'Generar rutina'}
+      </button>
+
+      {planErr && (
+        <div className="mb-3">
+          <p className="text-xs text-danger">{planErr}</p>
+          <button onClick={generatePlan} className="btn-ghost text-xs mt-1" disabled={generating}>
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {planMessage && !plan && <p className="text-sm text-text-dim">{planMessage}</p>}
+
+      {plan && (
+        <div className="space-y-4">
+          {plan.structure.map((day, di) => (
+            <div key={di} className="border border-bg-border rounded-lg p-3">
+              <h3 className="font-display text-base font-semibold text-accent mb-2">{day.day}</h3>
+              <ul className="space-y-1">
+                {day.exercises.map((ex, ei) => (
+                  <li key={ei} className="text-sm text-text-secondary">
+                    <span className="text-text-primary">{ex.name}</span>
+                    {' — '}
+                    {ex.duration_seconds != null
+                      ? `${ex.duration_seconds}s`
+                      : `${ex.sets ?? '-'}×${ex.reps ?? '-'}`}
+                    {`, descanso ${ex.rest_seconds}s`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          {plan.disclaimer && <p className="text-xs text-text-dim">{plan.disclaimer}</p>}
+        </div>
+      )}
+    </div>
+  )
+
+  const sectionAdherencia = (
+    <div className="card">
+      <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Adherencia</h2>
+      {adherence == null ? (
+        <p className="text-sm text-text-dim">No disponible.</p>
+      ) : adherence.available ? (
+        <div className="flex items-baseline gap-2">
+          <span className="display text-3xl text-success">
+            {Math.round((adherence.ratio ?? 0) * 100)}%
+          </span>
+          <span className="text-sm text-text-secondary">
+            {adherence.completed ?? 0} de {adherence.planned ?? 0} sesiones
+          </span>
+        </div>
+      ) : (
+        <p className="text-sm text-text-dim">
+          {adherence.message ?? 'No hay adherencia calculable todavía.'}
+        </p>
+      )}
+    </div>
+  )
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-text-primary">🏋️ Coach de fitness</h1>
-        <p className="text-xs text-text-dim mt-1">
+        <h1 className="font-display text-2xl font-semibold text-text-primary leading-none">
+          Coach de fitness
+        </h1>
+        <p className="text-sm text-text-secondary mt-1">
           Configura tu perfil y objetivo para generar rutinas adaptadas a ti.
         </p>
       </div>
 
-      {/* ── Perfil ── */}
-      <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">👤 Perfil</h2>
-        <form onSubmit={saveProfile} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-text-secondary">Peso (kg)</label>
-              <input
-                type="number"
-                step="0.1"
-                className="input"
-                value={profile.weight_kg}
-                onChange={(e) => setProfile({ ...profile, weight_kg: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs text-text-secondary">Altura (cm)</label>
-              <input
-                type="number"
-                step="0.1"
-                className="input"
-                value={profile.height_cm}
-                onChange={(e) => setProfile({ ...profile, height_cm: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs text-text-secondary">Edad</label>
-              <input
-                type="number"
-                className="input"
-                value={profile.age}
-                onChange={(e) => setProfile({ ...profile, age: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs text-text-secondary">Sexo</label>
-              <select
-                className="input"
-                value={profile.sex}
-                onChange={(e) => setProfile({ ...profile, sex: e.target.value })}
-              >
-                <option value="">Sin especificar</option>
-                <option value="male">Masculino</option>
-                <option value="female">Femenino</option>
-                <option value="other">Otro</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-text-secondary">Nivel</label>
-              <select
-                className="input"
-                value={profile.level}
-                onChange={(e) => setProfile({ ...profile, level: e.target.value })}
-              >
-                <option value="principiante">Principiante</option>
-                <option value="intermedio">Intermedio</option>
-                <option value="avanzado">Avanzado</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-text-secondary">Días/semana</label>
-              <input
-                type="number"
-                min={1}
-                max={7}
-                className="input"
-                value={profile.days_per_week}
-                onChange={(e) => setProfile({ ...profile, days_per_week: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs text-text-secondary">Minutos/sesión</label>
-              <input
-                type="number"
-                min={10}
-                max={240}
-                className="input"
-                value={profile.minutes_per_session}
-                onChange={(e) =>
-                  setProfile({ ...profile, minutes_per_session: e.target.value })
-                }
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs text-text-secondary">Equipo disponible</label>
-            <p className="text-[11px] text-text-dim mb-2">
-              Marca solo lo que tienes. Si tienes acceso a un gimnasio con todo,
-              marca "Gimnasio completo".
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-              {EQUIPMENT_CATALOG.map((item) => (
-                <label
-                  key={item.id}
-                  className="flex items-start gap-2 text-sm text-text-primary cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    className="mt-0.5"
-                    checked={profile.equipment.includes(item.id)}
-                    onChange={() => toggleEquipment(item.id)}
-                  />
-                  <span>
-                    <span className="block leading-tight">{item.label}</span>
-                    <span className="block text-[11px] text-text-dim leading-tight">
-                      {item.hint}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {profileErr && <p className="text-xs text-danger">{profileErr}</p>}
-          {profileMsg && <p className="text-xs text-success">{profileMsg}</p>}
-
-          <button type="submit" className="btn-primary w-full text-sm" disabled={savingProfile}>
-            {savingProfile ? 'Guardando...' : 'Guardar perfil'}
-          </button>
-        </form>
-      </div>
-
-      {/* ── Objetivo ── */}
-      <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">🎯 Objetivo</h2>
-        <form onSubmit={saveGoal} className="space-y-3">
-          <div>
-            <label className="text-xs text-text-secondary">Tipo de objetivo</label>
-            <select
-              className="input"
-              value={goalType}
-              onChange={(e) => setGoalType(e.target.value)}
-            >
-              {GOAL_TYPES.map((g) => (
-                <option key={g.value} value={g.value}>
-                  {g.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {goalType === 'weight_target' && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-text-secondary">Peso objetivo (kg)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  className="input"
-                  value={targetWeight}
-                  onChange={(e) => setTargetWeight(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-text-secondary">Fecha objetivo</label>
-                <input
-                  type="date"
-                  className="input"
-                  value={targetDate}
-                  onChange={(e) => setTargetDate(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-
-          {goalType === 'performance' && (
-            <div>
-              <label className="text-xs text-text-secondary">Descripción de la marca</label>
-              <input
-                type="text"
-                maxLength={200}
-                className="input"
-                placeholder="Ej. correr 10 km en 50 min"
-                value={performanceTarget}
-                onChange={(e) => setPerformanceTarget(e.target.value)}
-              />
-            </div>
-          )}
-
-          {goalErr && <p className="text-xs text-danger">{goalErr}</p>}
-          {goalMsg && <p className="text-xs text-success">{goalMsg}</p>}
-
-          <button type="submit" className="btn-primary w-full text-sm" disabled={savingGoal}>
-            {savingGoal ? 'Guardando...' : 'Guardar objetivo'}
-          </button>
-        </form>
-
-        {goalResult?.target_rate && (
-          <div className="mt-4 space-y-1 border-t border-bg-border pt-3">
-            <p className="text-sm text-text-primary">
-              Ritmo: {goalResult.target_rate.rate_kg_per_week} kg/semana (
-              {goalResult.target_rate.direction})
-            </p>
-            <p className="text-sm text-text-secondary">
-              {goalResult.target_rate.daily_kcal_delta} kcal/día
-            </p>
-            {goalResult.target_rate.warning && goalResult.target_rate.warning_message && (
-              <p className="text-xs text-danger">{goalResult.target_rate.warning_message}</p>
-            )}
-            <p className="text-xs text-text-dim">{goalResult.target_rate.disclaimer}</p>
-          </div>
-        )}
-      </div>
-
-      {/* ── Rutina ── */}
-      <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">📅 Rutina</h2>
-        <button
-          onClick={generatePlan}
-          className="btn-primary w-full text-sm mb-3"
-          disabled={generating}
-        >
-          {generating ? 'Generando...' : 'Generar rutina'}
-        </button>
-
-        {planErr && (
-          <div className="mb-3">
-            <p className="text-xs text-danger">{planErr}</p>
-            <button
-              onClick={generatePlan}
-              className="btn-ghost text-xs mt-1"
-              disabled={generating}
-            >
-              Reintentar
-            </button>
-          </div>
-        )}
-
-        {planMessage && !plan && <p className="text-sm text-text-dim">{planMessage}</p>}
-
-        {plan && (
-          <div className="space-y-4">
-            {plan.structure.map((day, di) => (
-              <div key={di} className="border border-bg-border rounded-lg p-3">
-                <h3 className="text-sm font-semibold text-accent mb-2">{day.day}</h3>
-                <ul className="space-y-1">
-                  {day.exercises.map((ex, ei) => (
-                    <li key={ei} className="text-sm text-text-secondary">
-                      <span className="text-text-primary">{ex.name}</span>
-                      {' — '}
-                      {ex.duration_seconds != null
-                        ? `${ex.duration_seconds}s`
-                        : `${ex.sets ?? '-'}×${ex.reps ?? '-'}`}
-                      {`, descanso ${ex.rest_seconds}s`}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-            {plan.disclaimer && <p className="text-xs text-text-dim">{plan.disclaimer}</p>}
-          </div>
-        )}
-      </div>
-
-      {/* ── Peso y progreso ── */}
-      <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">⚖️ Peso y progreso</h2>
-        <form onSubmit={saveWeight} className="flex gap-2 items-end mb-4">
-          <div className="flex-1">
-            <label className="text-xs text-text-secondary">Peso (kg)</label>
-            <input
-              type="number"
-              step="0.1"
-              className="input"
-              value={weightVal}
-              onChange={(e) => setWeightVal(e.target.value)}
-              required
-            />
-          </div>
-          <div className="flex-1">
-            <label className="text-xs text-text-secondary">Fecha</label>
-            <input
-              type="date"
-              className="input"
-              value={weightDate}
-              onChange={(e) => setWeightDate(e.target.value)}
-              required
-            />
-          </div>
-          <button type="submit" className="btn-primary text-sm" disabled={savingWeight}>
-            {savingWeight ? '...' : 'Registrar'}
-          </button>
-        </form>
-
-        {weightErr && <p className="text-xs text-danger mb-2">{weightErr}</p>}
-
-        <WeightChart
-          series={progress?.series ?? []}
-          targetWeight={progress?.target_weight_kg}
-        />
-      </div>
-
-      {/* ── Adherencia ── */}
-      <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">📊 Adherencia</h2>
-        {adherence == null ? (
-          <p className="text-sm text-text-dim">No disponible.</p>
-        ) : adherence.available ? (
-          <div className="space-y-1">
-            <p className="text-sm text-text-primary">
-              {adherence.completed ?? 0} de {adherence.planned ?? 0} sesiones
-            </p>
-            <p className="text-sm text-text-secondary">
-              {Math.round((adherence.ratio ?? 0) * 100)}% de adherencia
-            </p>
-          </div>
-        ) : (
-          <p className="text-sm text-text-dim">
-            {adherence.message ?? 'No hay adherencia calculable todavía.'}
-          </p>
-        )}
-      </div>
+      {sectionPerfil}
+      {sectionObjetivo}
+      {sectionPeso}
+      {sectionRutina}
+      {sectionAdherencia}
     </div>
   )
 }

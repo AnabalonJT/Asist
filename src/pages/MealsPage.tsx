@@ -413,15 +413,46 @@ export function MealsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-text-primary">🍽️ Comidas</h1>
-        <p className="text-xs text-text-dim mt-1">
+        <h1 className="font-display text-2xl font-semibold text-text-primary leading-none">Comidas</h1>
+        <p className="text-sm text-text-secondary mt-1">
           Configura tu despensa, restricciones y metas para generar un plan de comidas.
         </p>
       </div>
 
+      {/* ── Agregar alimento (escáner / búsqueda) ── */}
+      <div className="card">
+        <h2 className="font-display text-lg font-semibold text-text-primary mb-3">
+          Agregar alimento
+        </h2>
+
+        <div className="space-y-4">
+          {candidate ? (
+            /* A food was found: replace the scanner/search with the confirm step. */
+            <FoodConfirm
+              candidate={candidate}
+              onAdded={handleAdded}
+              onCancel={() => setCandidate(null)}
+            />
+          ) : (
+            <>
+              <BarcodeScanner onDetected={handleBarcode} />
+
+              {lookupErr && <p className="text-xs text-danger">{lookupErr}</p>}
+
+              <div className="border-t border-bg-border pt-3">
+                <h3 className="text-xs font-semibold text-text-secondary mb-2">
+                  Buscar por nombre
+                </h3>
+                <FoodSearchBox onPick={handlePick} />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* ── Inventario / Despensa ── */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">🥫 Inventario / Despensa</h2>
+        <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Inventario / Despensa</h2>
 
         <form onSubmit={addInventory} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -716,41 +747,10 @@ export function MealsPage() {
         )}
       </div>
 
-      {/* ── Agregar alimento (escáner / búsqueda) ── */}
-      <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">
-          🔍 Agregar alimento (escáner / búsqueda)
-        </h2>
-
-        <div className="space-y-4">
-          {candidate ? (
-            /* A food was found: replace the scanner/search with the confirm step. */
-            <FoodConfirm
-              candidate={candidate}
-              onAdded={handleAdded}
-              onCancel={() => setCandidate(null)}
-            />
-          ) : (
-            <>
-              <BarcodeScanner onDetected={handleBarcode} />
-
-              {lookupErr && <p className="text-xs text-danger">{lookupErr}</p>}
-
-              <div className="border-t border-bg-border pt-3">
-                <h3 className="text-xs font-semibold text-text-secondary mb-2">
-                  Buscar por nombre
-                </h3>
-                <FoodSearchBox onPick={handlePick} />
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
       {/* ── Preferencias / Restricciones ── */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">
-          🥗 Preferencias / Restricciones
+        <h2 className="font-display text-lg font-semibold text-text-primary mb-3">
+          Preferencias / Restricciones
         </h2>
         <form onSubmit={saveDietary} className="space-y-3">
           <div className="flex flex-wrap gap-4">
@@ -833,7 +833,7 @@ export function MealsPage() {
 
       {/* ── Metas nutricionales ── */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">🎯 Metas nutricionales</h2>
+        <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Metas nutricionales</h2>
 
         {isTargets(targets) ? (
           <div className="space-y-1 mb-3">
@@ -928,7 +928,7 @@ export function MealsPage() {
 
       {/* ── Plan de comidas ── */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">📅 Plan de comidas</h2>
+        <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Plan de comidas</h2>
         <button
           onClick={generatePlan}
           className="btn-primary w-full text-sm mb-3"
@@ -981,7 +981,7 @@ export function MealsPage() {
 
       {/* ── Lista de compras ── */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-text-primary mb-3">🛒 Lista de compras</h2>
+        <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Lista de compras</h2>
         <button
           onClick={loadShoppingList}
           className="btn-primary w-full text-sm mb-3"
