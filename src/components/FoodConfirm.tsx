@@ -15,13 +15,18 @@ interface FoodConfirmProps {
   onCancel: () => void
 }
 
-// Confirmation_Step: show the Food_Candidate with editable nutrition values
-// (per 100 g) and let the user confirm it into their inventory or cancel.
+// Confirmation_Step: show the Food_Candidate with EDITABLE name, barcode and
+// per-100g nutrition values. The user can confirm it into their inventory
+// ("Sí, agregar") or reject it to go back to scanning ("No, volver a escanear").
 export function FoodConfirm({ candidate, onAdded, onCancel }: FoodConfirmProps) {
-  // Pre-fill the editable number inputs from the candidate's nutrition values.
   const toField = (v: number | null | undefined): string =>
     v === null || v === undefined ? '' : String(v)
 
+  // Editable identity fields.
+  const [name, setName] = useState<string>(candidate.name)
+  const [barcode, setBarcode] = useState<string>(candidate.barcode ?? '')
+
+  // Editable per-100g nutrition fields.
   const [kcal, setKcal] = useState<string>(toField(candidate.kcal))
   const [protein, setProtein] = useState<string>(toField(candidate.protein))
   const [fat, setFat] = useState<string>(toField(candidate.fat))
@@ -33,25 +38,30 @@ export function FoodConfirm({ candidate, onAdded, onCancel }: FoodConfirmProps) 
 
   async function handleAdd(e: FormEvent) {
     e.preventDefault()
+    // Require a non-empty name before touching the API.
+    if (!name.trim()) {
+      setErr('El nombre no puede estar vacío.')
+      return
+    }
     setSaving(true)
     setErr('')
     try {
       await mealsApi.addInventory({
-        food_name: candidate.name,
+        food_name: name.trim(),
         quantity_grams: grams === '' ? null : Number(grams),
         new_food: {
-          name: candidate.name,
+          name: name.trim(),
           kcal: Number(kcal),
           protein: Number(protein),
           fat: Number(fat),
           carbs: Number(carbs),
           fiber: fiber === '' ? null : Number(fiber),
-          barcode: candidate.barcode ?? null,
+          barcode: barcode.trim() === '' ? null : barcode.trim(),
         },
       })
       onAdded()
     } catch (e: any) {
-      // Preserve the form so the user can correct out-of-range values.
+      // Preserve the form so the user can correct values / name / barcode.
       setErr(apiError(e, 'No se pudo agregar el alimento.'))
     } finally {
       setSaving(false)
@@ -63,6 +73,9 @@ export function FoodConfirm({ candidate, onAdded, onCancel }: FoodConfirmProps) 
       <h2 className="text-sm font-semibold text-text-primary">
         ¿Es este el alimento que quieres agregar?
       </h2>
+      <p className="text-xs text-text-dim">
+        Si no es correcto, edita los campos o vuelve a escanear.
+      </p>
 
       <div className="flex items-start gap-3">
         {candidate.image_url && (
@@ -72,16 +85,36 @@ export function FoodConfirm({ candidate, onAdded, onCancel }: FoodConfirmProps) 
             className="w-16 h-16 rounded-lg object-cover border border-bg-border"
           />
         )}
-        <div>
-          <p className="text-sm font-semibold text-text-primary">{candidate.name}</p>
-          {candidate.brand && (
-            <p className="text-xs text-text-secondary">{candidate.brand}</p>
-          )}
-          <p className="text-xs text-text-dim">Valores nutricionales por 100 g</p>
-        </div>
+        {candidate.brand && (
+          <p className="text-xs text-text-secondary">{candidate.brand}</p>
+        )}
       </div>
 
       <form onSubmit={handleAdd} className="space-y-3">
+        {/* Editable identity: name + barcode */}
+        <div>
+          <label className="text-xs text-text-secondary">Nombre</label>
+          <input
+            type="text"
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label className="text-xs text-text-secondary">Código de barras (opcional)</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            className="input"
+            value={barcode}
+            onChange={(e) => setBarcode(e.target.value)}
+            placeholder="Ej. 7501234567890"
+          />
+        </div>
+
+        <p className="text-xs text-text-dim">Valores nutricionales por 100 g</p>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-text-secondary">Kcal</label>
@@ -154,7 +187,7 @@ export function FoodConfirm({ candidate, onAdded, onCancel }: FoodConfirmProps) 
 
         <div className="flex gap-2">
           <button type="submit" className="btn-primary flex-1 text-sm" disabled={saving}>
-            {saving ? 'Agregando...' : 'Agregar'}
+            {saving ? 'Agregando...' : 'Sí, agregar'}
           </button>
           <button
             type="button"
@@ -162,7 +195,7 @@ export function FoodConfirm({ candidate, onAdded, onCancel }: FoodConfirmProps) 
             onClick={onCancel}
             disabled={saving}
           >
-            Cancelar
+            No, volver a escanear
           </button>
         </div>
       </form>

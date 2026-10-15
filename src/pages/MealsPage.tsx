@@ -723,23 +723,26 @@ export function MealsPage() {
         </h2>
 
         <div className="space-y-4">
-          <BarcodeScanner onDetected={handleBarcode} />
-
-          {lookupErr && <p className="text-xs text-danger">{lookupErr}</p>}
-
-          <div className="border-t border-bg-border pt-3">
-            <h3 className="text-xs font-semibold text-text-secondary mb-2">
-              Buscar por nombre
-            </h3>
-            <FoodSearchBox onPick={handlePick} />
-          </div>
-
-          {candidate && (
+          {candidate ? (
+            /* A food was found: replace the scanner/search with the confirm step. */
             <FoodConfirm
               candidate={candidate}
               onAdded={handleAdded}
               onCancel={() => setCandidate(null)}
             />
+          ) : (
+            <>
+              <BarcodeScanner onDetected={handleBarcode} />
+
+              {lookupErr && <p className="text-xs text-danger">{lookupErr}</p>}
+
+              <div className="border-t border-bg-border pt-3">
+                <h3 className="text-xs font-semibold text-text-secondary mb-2">
+                  Buscar por nombre
+                </h3>
+                <FoodSearchBox onPick={handlePick} />
+              </div>
+            </>
           )}
         </div>
       </div>
