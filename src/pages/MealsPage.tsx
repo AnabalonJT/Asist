@@ -3,12 +3,16 @@ import {
   mealsApi,
   Food,
   FoodInput,
+  FoodCandidate,
   InventoryItem,
   Dietary,
   Targets,
   MealPlan,
 } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
+import { BarcodeScanner } from '../components/BarcodeScanner'
+import { FoodSearchBox } from '../components/FoodSearchBox'
+import { FoodConfirm } from '../components/FoodConfirm'
 
 function apiError(err: any, fallback: string): string {
   const detail = err?.response?.data?.detail
@@ -64,6 +68,10 @@ export function MealsPage() {
   const [invErr, setInvErr] = useState('')
   const [invMsg, setInvMsg] = useState('')
   const [savingInv, setSavingInv] = useState(false)
+
+  // ── Agregar alimento (escáner / búsqueda) ──
+  const [candidate, setCandidate] = useState<FoodCandidate | null>(null)
+  const [lookupErr, setLookupErr] = useState('')
 
   // ── Catálogo admin ──
   const [catName, setCatName] = useState('')
@@ -235,6 +243,34 @@ export function MealsPage() {
     } catch (err: any) {
       setInvErr(apiError(err, 'No se pudo quitar del inventario.'))
     }
+  }
+
+  // ── Escáner / búsqueda → confirmación ──
+
+  // Resolve a scanned/typed barcode into a Food_Candidate for confirmation.
+  async function handleBarcode(code: string) {
+    setLookupErr('')
+    try {
+      const { data } = await mealsApi.lookupBarcode(code)
+      setCandidate(data)
+    } catch (err: any) {
+      // 404 (no encontrado) and 503 (fuente no disponible) just show the
+      // Spanish detail; the page must not crash.
+      setLookupErr(apiError(err, 'No se pudo buscar el código.'))
+    }
+  }
+
+  // A name-search result was picked: go straight to confirmation.
+  function handlePick(c: FoodCandidate) {
+    setCandidate(c)
+  }
+
+  // The candidate was confirmed into the inventory: close and refresh lists.
+  async function handleAdded() {
+    setCandidate(null)
+    // A new Food may have been created, so refresh both the inventory and the
+    // catalog/foods list.
+    await Promise.all([loadInventory(), loadFoods()])
   }
 
   async function createFood(e: FormEvent) {
@@ -678,6 +714,34 @@ export function MealsPage() {
             </form>
           </div>
         )}
+      </div>
+
+      {/* ── Agregar alimento (escáner / búsqueda) ── */}
+      <div className="card">
+        <h2 className="text-sm font-semibold text-text-primary mb-3">
+          🔍 Agregar alimento (escáner / búsqueda)
+        </h2>
+
+        <div className="space-y-4">
+          <BarcodeScanner onDetected={handleBarcode} />
+
+          {lookupErr && <p className="text-xs text-danger">{lookupErr}</p>}
+
+          <div className="border-t border-bg-border pt-3">
+            <h3 className="text-xs font-semibold text-text-secondary mb-2">
+              Buscar por nombre
+            </h3>
+            <FoodSearchBox onPick={handlePick} />
+          </div>
+
+          {candidate && (
+            <FoodConfirm
+              candidate={candidate}
+              onAdded={handleAdded}
+              onCancel={() => setCandidate(null)}
+            />
+          )}
+        </div>
       </div>
 
       {/* ── Preferencias / Restricciones ── */}

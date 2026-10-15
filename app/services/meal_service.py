@@ -567,6 +567,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.food import Food
 from app.models.dietary_profile import DietaryProfile
+from app.services.food_lookup_service import normalize_barcode
+
+
+def _barcode_field(fields):
+    """Extract and normalize the optional ``barcode`` from ``fields``.
+
+    ``fields`` may be a dict or an object. Returns the normalized barcode, or
+    ``None`` when absent or empty (an empty string is treated as no barcode)."""
+    if isinstance(fields, dict):
+        raw = fields.get("barcode")
+    else:
+        raw = getattr(fields, "barcode", None)
+    normalized = normalize_barcode(raw)
+    return normalized or None
 
 
 def _food_fields(fields):
@@ -625,6 +639,7 @@ async def create_food(
          nothing inserted.
     On success, insert the food and return it."""
     name, kcal, protein, fat, carbs, fiber = _food_fields(fields)
+    barcode = _barcode_field(fields)
 
     # 1. Validate the nutrition fields first (raises on invalid, no mutation).
     validate_food_fields(name, kcal, protein, fat, carbs, fiber)
@@ -651,9 +666,18 @@ async def create_food(
         is_meat=is_meat,
         is_animal=is_animal,
         has_gluten=has_gluten,
+        barcode=barcode,
     )
     db.add(food)
-    await db.flush()
+    # 4. Enforce the unique barcode: a duplicate raises IntegrityError. Roll back
+    # the pending insert so the catalog stays intact, then report in Spanish.
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise ValidationError(
+            "Ese código de barras ya está asociado a otro alimento."
+        )
     return food
 
 
@@ -898,6 +922,7 @@ async def add_inventory(
             )
 
         name, kcal, protein, fat, carbs, fiber = _food_fields(new_food_fields)
+        barcode = _barcode_field(new_food_fields)
         # Prefer the explicit food_name when the fields omit a name.
         if not (isinstance(name, str) and name.strip()):
             name = food_name
@@ -924,10 +949,19 @@ async def add_inventory(
             is_meat=is_meat,
             is_animal=is_animal,
             has_gluten=has_gluten,
+            barcode=barcode,
         )
         db.add(food)
-        # Flush so the new food gets an id for the inventory FK below.
-        await db.flush()
+        # Flush so the new food gets an id for the inventory FK below. A duplicate
+        # barcode raises IntegrityError; roll back the pending insert so the
+        # catalog/inventory stay intact, then report in Spanish.
+        try:
+            await db.flush()
+        except IntegrityError:
+            await db.rollback()
+            raise ValidationError(
+                "Ese código de barras ya está asociado a otro alimento."
+            )
 
     # 4. Upsert the inventory row, deduplicated by (user_id, food_id).
     result = await db.execute(

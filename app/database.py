@@ -106,6 +106,7 @@ async def _migrate_columns() -> None:
         ("goals", "closed_notified", "BOOLEAN", "false"),
         ("challenges", "closed_notified", "BOOLEAN", "false"),
         ("reminders", "challenge_id", "INTEGER", None),
+        ("foods", "barcode", "VARCHAR(14)", None),
     ]
 
     async with engine.begin() as conn:
@@ -126,6 +127,20 @@ async def _migrate_columns() -> None:
                     logger.info("Added column %s.%s", table, column)
             except Exception as e:
                 logger.warning("Migration check for %s.%s: %s", table, column, e)
+
+        # Create the unique index on foods.barcode idempotently.
+        # Runs after the column loop so the foods.barcode column already exists.
+        # Postgres allows multiple NULLs under a unique index, which is desired
+        # since barcode is optional. A failure here must never abort startup.
+        try:
+            from sqlalchemy import text
+            index_check_sql = "SELECT 1 FROM pg_indexes WHERE indexname = 'ix_foods_barcode'"
+            result = await conn.execute(text(index_check_sql))
+            if result.scalar() is None:
+                await conn.execute(text("CREATE UNIQUE INDEX ix_foods_barcode ON foods (barcode)"))
+                logger.info("Created unique index ix_foods_barcode on foods.barcode")
+        except Exception as e:
+            logger.warning("Index creation for ix_foods_barcode: %s", e)
 
 
 async def _seed_foods() -> None:

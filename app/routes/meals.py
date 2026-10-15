@@ -12,13 +12,21 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.middleware import get_current_user, get_current_admin
 from app.models.food import Food
 from app.models.user import User
-from app.services import meal_service
+from app.services import food_lookup_service, meal_service
+from app.services.food_lookup_service import (
+    ExternalSourceError,
+    InvalidBarcodeError,
+    NotFoundError,
+    is_valid_barcode,
+    normalize_barcode,
+)
 from app.services.meal_service import (
     MEAL_DISCLAIMER,
     DietaryError,
@@ -45,6 +53,7 @@ class FoodIn(BaseModel):
     is_meat: bool = False
     is_animal: bool = False
     has_gluten: bool = False
+    barcode: str | None = None
 
 
 class FoodOut(BaseModel):
@@ -58,6 +67,7 @@ class FoodOut(BaseModel):
     is_meat: bool
     is_animal: bool
     has_gluten: bool
+    barcode: str | None
 
     @classmethod
     def from_model(cls, f: Food) -> "FoodOut":
@@ -72,6 +82,7 @@ class FoodOut(BaseModel):
             is_meat=f.is_meat,
             is_animal=f.is_animal,
             has_gluten=f.has_gluten,
+            barcode=f.barcode,
         )
 
 
@@ -429,3 +440,110 @@ async def get_shopping_list(
         ShoppingItemOut(food_name=item["food_name"], grams=item["grams"])
         for item in items
     ]
+
+
+# ── Food lookup & search (Food Barcode, Req 2, 3, 6.1) ───────────────────────
+class FoodCandidateOut(BaseModel):
+    name: str
+    barcode: str | None = None
+    kcal: float | None = None
+    protein: float | None = None
+    fat: float | None = None
+    carbs: float | None = None
+    fiber: float | None = None
+    brand: str | None = None
+    image_url: str | None = None
+    source: str  # "local" | "off"
+
+
+@router.get("/barcode/{code}", response_model=FoodCandidateOut)
+async def lookup_barcode(
+    code: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Look up a food by barcode: local catalog first, then Open Food Facts
+    (Req 2.1, 2.6, 2.7, 2.8, 6.1)."""
+    # 1. Validate the barcode format before touching the DB or the network.
+    if not is_valid_barcode(code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El código de barras no es válido. Debe tener entre 8 y 14 dígitos.",
+        )
+
+    # 2. Local catalog hit short-circuits the external source (Req 2.1).
+    norm = normalize_barcode(code)
+    result = await db.execute(select(Food).where(Food.barcode == norm))
+    f = result.scalar_one_or_none()
+    if f is not None:
+        return FoodCandidateOut(
+            name=f.name,
+            barcode=f.barcode,
+            kcal=f.kcal_per_100g,
+            protein=f.protein_g_per_100g,
+            fat=f.fat_g_per_100g,
+            carbs=f.carbs_g_per_100g,
+            fiber=f.fiber_g_per_100g,
+            brand=None,
+            image_url=None,
+            source="local",
+        )
+
+    # 3. Fall back to the external source, translating its errors to Spanish.
+    try:
+        candidate = await food_lookup_service.lookup_barcode(norm)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ExternalSourceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)
+        )
+    except InvalidBarcodeError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return FoodCandidateOut(**candidate)
+
+
+@router.get("/food-search", response_model=list[FoodCandidateOut])
+async def food_search(
+    q: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Search foods by name: local catalog, plus Open Food Facts as a
+    best-effort fallback when there are no local results (Req 3.1, 3.2, 3.4,
+    3.5, 6.1)."""
+    # 1. Validate the search term length.
+    term = q.strip()
+    if not (1 <= len(term) <= 100):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El término de búsqueda debe tener entre 1 y 100 caracteres.",
+        )
+
+    # 2. Local catalog search by name.
+    result = await db.execute(
+        select(Food).where(Food.name.ilike(f"%{term}%")).limit(20)
+    )
+    foods = result.scalars().all()
+    candidates = [
+        FoodCandidateOut(
+            name=f.name,
+            barcode=f.barcode,
+            kcal=f.kcal_per_100g,
+            protein=f.protein_g_per_100g,
+            fat=f.fat_g_per_100g,
+            carbs=f.carbs_g_per_100g,
+            fiber=f.fiber_g_per_100g,
+            brand=None,
+            image_url=None,
+            source="local",
+        )
+        for f in foods
+    ]
+
+    # 3. Best-effort external fallback when there are no local results.
+    if len(candidates) < 1:
+        external = await food_lookup_service.search_by_name(term)
+        candidates.extend(FoodCandidateOut(**c) for c in external)
+
+    return candidates

@@ -322,6 +322,20 @@ export interface FoodInput {
   is_meat?: boolean
   is_animal?: boolean
   has_gluten?: boolean
+  barcode?: string | null
+}
+
+export interface FoodCandidate {
+  name: string
+  barcode?: string | null
+  kcal?: number | null
+  protein?: number | null
+  fat?: number | null
+  carbs?: number | null
+  fiber?: number | null
+  brand?: string | null
+  image_url?: string | null
+  source: string   // "local" | "off"
 }
 
 export interface InventoryItem {
@@ -405,4 +419,7 @@ export const mealsApi = {
   getPlan: () => api.get<MealPlan | { message: string }>('/meals/plan'),
 
   getShoppingList: () => api.get<ShoppingItem[]>('/meals/shopping-list'),
+
+  lookupBarcode: (code: string) => api.get<FoodCandidate>(`/meals/barcode/${encodeURIComponent(code)}`),
+  searchFood: (q: string) => api.get<FoodCandidate[]>(`/meals/food-search?q=${encodeURIComponent(q)}`),
 }
