@@ -762,6 +762,161 @@ async def generate_workout_plan(
     return plan
 
 
+def _split_days_into_chunks(total_days: int, chunk_count: int) -> list[int]:
+    """Split ``total_days`` into ``chunk_count`` contiguous batches as evenly as
+    possible. e.g. (6,3)->[2,2,2]; (4,3)->[2,1,1]; (1,3)->[1,0,0]. Earlier chunks
+    get the remainder first so a 0-size chunk only ever trails at the end."""
+    if chunk_count <= 0:
+        return []
+    base = total_days // chunk_count
+    extra = total_days % chunk_count
+    return [base + (1 if i < extra else 0) for i in range(chunk_count)]
+
+
+async def generate_workout_plan_chunk(
+    db: AsyncSession,
+    user_id: int,
+    chunk_index: int,
+    chunk_count: int,
+    overrides: dict | None = None,
+) -> WorkoutPlan:
+    """Generate ONE chunk of the workout plan and accumulate it into a single
+    active Workout_Plan across calls.
+
+    The total ``days_per_week`` is split into ``chunk_count`` contiguous batches.
+    This call generates batch ``chunk_index`` only (a small LLM output, which the
+    free model handles far more reliably than a full week). On ``chunk_index == 0``
+    the previous active plan is deactivated and a fresh active plan is created with
+    this batch's days; on later chunks the batch's days are appended to that plan.
+
+    A zero-size batch (when days < chunk_count) is a no-op that returns the current
+    plan. On LLM/parse failure raises ``LLMError`` (Spanish) without corrupting the
+    plan being built, so the caller can retry this chunk.
+    """
+    overrides = overrides or {}
+
+    profile = await _get_profile(db, user_id)
+    if profile is None or not profile.goal_type:
+        raise GoalRequiredError(
+            "Primero completa tu perfil y objetivo para generar una rutina."
+        )
+
+    effective_goal_type = overrides.get("goal_type") or profile.goal_type
+    effective_equipment = overrides.get("equipment")
+    if effective_equipment is None:
+        effective_equipment = profile.equipment_list()
+    effective_days = overrides.get("days_per_week") or profile.days_per_week
+
+    sizes = _split_days_into_chunks(effective_days, chunk_count)
+    if chunk_index < 0 or chunk_index >= len(sizes):
+        raise LLMError(
+            "No pudimos generar este bloque de la rutina. Intenta de nuevo.",
+            kind="error",
+        )
+    day_count = sizes[chunk_index]
+    start_day_number = sum(sizes[:chunk_index]) + 1
+
+    # Zero-size batch: nothing to generate for this chunk.
+    if day_count <= 0:
+        existing = await get_active_plan(db, user_id)
+        if existing is not None:
+            return existing
+        # No plan yet and nothing to add — create an empty active plan to anchor.
+        plan = WorkoutPlan(
+            user_id=user_id,
+            goal_type=effective_goal_type,
+            structure=json.dumps([], ensure_ascii=False),
+            active=True,
+        )
+        db.add(plan)
+        await db.flush()
+        return plan
+
+    activity_summary = await build_activity_summary(db, user_id)
+    profile_dict = {
+        "equipment": effective_equipment,
+        "days_per_week": day_count,
+        "level": profile.level,
+    }
+    goal_dict = {
+        "goal_type": effective_goal_type,
+        "performance_target": profile.performance_target,
+        "target_weight_kg": profile.target_weight_kg,
+        "target_date": profile.target_date,
+    }
+
+    parsed = None
+    for _attempt in range(2):
+        parsed = await llm_service.generate_workout_chunk(
+            profile_dict, goal_dict, activity_summary,
+            day_count=day_count, start_day_number=start_day_number,
+            timeout_seconds=120.0,
+        )
+        if parsed is not None:
+            break
+    if parsed is None:
+        raise LLMError(
+            "No pudimos generar este bloque de la rutina. Intenta de nuevo.",
+            kind="error",
+        )
+
+    if isinstance(parsed, dict):
+        days = parsed.get("days", [])
+    elif isinstance(parsed, list):
+        days = parsed
+    else:
+        days = []
+    if not isinstance(days, list) or not days:
+        raise LLMError(
+            "No pudimos interpretar este bloque de la rutina. Intenta de nuevo.",
+            kind="parse",
+        )
+
+    try:
+        validate_plan_structure(days)
+    except ValidationError:
+        raise LLMError(
+            "No pudimos interpretar este bloque de la rutina. Intenta de nuevo.",
+            kind="parse",
+        )
+
+    days = filter_plan_equipment(days, effective_equipment)
+
+    if chunk_index == 0:
+        # First chunk: start a fresh active plan, retiring any previous one.
+        previous = await get_active_plan(db, user_id)
+        if previous is not None:
+            previous.active = False
+        plan = WorkoutPlan(
+            user_id=user_id,
+            goal_type=effective_goal_type,
+            structure=json.dumps(days, ensure_ascii=False),
+            active=True,
+        )
+        db.add(plan)
+        await db.flush()
+        return plan
+
+    # Later chunk: append this batch's days to the in-progress active plan.
+    plan = await get_active_plan(db, user_id)
+    if plan is None:
+        # Defensive: no anchor plan (chunk 0 never ran) — create one now.
+        plan = WorkoutPlan(
+            user_id=user_id,
+            goal_type=effective_goal_type,
+            structure=json.dumps(days, ensure_ascii=False),
+            active=True,
+        )
+        db.add(plan)
+        await db.flush()
+        return plan
+
+    combined = plan.structure_list() + days
+    plan.structure = json.dumps(combined, ensure_ascii=False)
+    await db.flush()
+    return plan
+
+
 # ── Meal_Planner integration view (Req 3.5, 1.9) ─────────────────────────────
 async def get_meal_planner_view(db: AsyncSession, user_id: int) -> dict | None:
     """Expose the profile view for the Meal_Planner, plus the target rate.

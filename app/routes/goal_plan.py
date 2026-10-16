@@ -137,6 +137,15 @@ class WorkoutPlanIn(BaseModel):
     structure: list
 
 
+class RoutineChunkIn(BaseModel):
+    """One block of a chunked routine generation request. The GoalWizard sends
+    ``chunk_count`` requests with ``chunk_index`` 0..n-1 so the free LLM returns
+    small, non-truncated JSON and the user sees real per-block progress."""
+
+    chunk_index: int
+    chunk_count: int
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 def _profile_dict(profile: FitnessProfile | None) -> dict | None:
     """Build the plain dict the pure wizard helpers consume from a profile."""
@@ -420,6 +429,46 @@ async def generate_routine(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="No pudimos generar tu rutina en este momento. Intenta de nuevo.",
+        )
+
+    return WorkoutPlanOut(
+        id=plan.id,
+        goal_type=plan.goal_type,
+        structure=plan.structure_list(),
+        disclaimer=goal_wizard_service.DISCLAIMER,
+    )
+
+
+@router.post("/routine/generate-chunk", response_model=WorkoutPlanOut)
+async def generate_routine_chunk(
+    body: RoutineChunkIn,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate ONE block of the routine. Called ``chunk_count`` times by the
+    wizard (chunk_index 0..n-1); each call returns the accumulated plan so far."""
+    try:
+        plan = await goal_wizard_service.generate_routine_chunk(
+            db, current_user.id,
+            chunk_index=body.chunk_index, chunk_count=body.chunk_count,
+        )
+    except GoalRequiredError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except LLMError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="No pudimos generar este bloque de la rutina. Intenta de nuevo.",
+        )
+    except EquipmentError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "Unexpected error generating routine chunk %s/%s for user_id=%s",
+            body.chunk_index, body.chunk_count, current_user.id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="No pudimos generar este bloque de la rutina. Intenta de nuevo.",
         )
 
     return WorkoutPlanOut(

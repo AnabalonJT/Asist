@@ -590,3 +590,24 @@ async def generate_routine(db: AsyncSession, user_id: int) -> WorkoutPlan:
     9.4, 9.6).
     """
     return await fitness_service.generate_workout_plan(db, user_id, overrides=None)
+
+
+async def generate_routine_chunk(
+    db: AsyncSession, user_id: int, chunk_index: int, chunk_count: int,
+) -> WorkoutPlan:
+    """Generate ONE chunk of the workout routine (thin wrapper over
+    ``fitness_service.generate_workout_plan_chunk``).
+
+    The GoalWizard calls this ``chunk_count`` times (chunk_index 0..n-1) so the
+    user sees real per-block progress while the free LLM returns small,
+    non-truncated JSON. ``chunk_index == 0`` deactivates any previous active
+    plan and creates a fresh one; later chunks append their days to it.
+
+    Any exception (``LLMError``, ``GoalRequiredError``, ``EquipmentError``)
+    propagates UNCHANGED so the router can map it to a Spanish message with a
+    retry; on failure prior state is preserved by the fitness_service layer.
+    """
+    return await fitness_service.generate_workout_plan_chunk(
+        db, user_id, chunk_index=chunk_index, chunk_count=chunk_count,
+        overrides=None,
+    )

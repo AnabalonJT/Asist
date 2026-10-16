@@ -867,57 +867,58 @@ function TrainingDaysStep({ data, dispatch, onDone, onBack }: StepProps) {
   )
 }
 
-// ── Step: Routine (LLM generation with incremental progress) ─────────────────────
-const ROUTINE_PROGRESS_STAGES = [
-  'Generando rutina...',
-  'Seleccionando ejercicios...',
-  'Día 1...',
-  'Día 2...',
-  'Día 3...',
-  'Ajustando series y descansos...',
-  'Casi listo...',
-]
+// ── Step: Routine (LLM generation in real chunks) ────────────────────────
+// The free model truncates a full week of JSON. We split generation into
+// CHUNK_COUNT smaller calls that accumulate server-side into one plan, so each
+// reply is small enough to parse and the user sees real per-block progress.
+const CHUNK_COUNT = 3
 
 function RoutineStep({ data, dispatch, onDone, onBack }: StepProps) {
   const [generating, setGenerating] = useState(false)
   const [err, setErr] = useState('')
-  const [stage, setStage] = useState(0)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Index of the chunk currently being generated (0..CHUNK_COUNT-1).
+  const [activeChunk, setActiveChunk] = useState(0)
+  // First chunk that still needs generating. On a clean start it is 0; after a
+  // mid-way failure it stays at the failed chunk so "Reintentar" resumes there
+  // instead of redoing the blocks that already succeeded.
+  const resumeFromRef = useRef(0)
   const reducedMotion = usePrefersReducedMotion()
   const routine = data.routine
 
-  function clearTimer() {
-    if (timerRef.current != null) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-  }
-
-  // Always clear the simulated-progress interval on unmount.
-  useEffect(() => clearTimer, [])
-
-  async function generate() {
+  // Generate chunks sequentially starting at ``from``. Each call returns the
+  // accumulated plan so far; we keep the latest in the wizard state so a failure
+  // partway through does not lose the blocks already generated (Req 9.3).
+  async function runChunks(from: number) {
     setGenerating(true)
     setErr('')
-    setStage(0)
-
-    // Simulate staged progress while the (slow) LLM request is in flight.
-    clearTimer()
-    timerRef.current = setInterval(() => {
-      setStage((s) => (s < ROUTINE_PROGRESS_STAGES.length - 1 ? s + 1 : s))
-    }, 1400)
-
     try {
-      const { data: res } = await goalPlanApi.generateRoutine()
-      dispatch({ type: 'setRoutine', routine: res })
+      for (let i = from; i < CHUNK_COUNT; i++) {
+        setActiveChunk(i)
+        const { data: res } = await goalPlanApi.generateRoutineChunk(i, CHUNK_COUNT)
+        dispatch({ type: 'setRoutine', routine: res })
+        resumeFromRef.current = i + 1
+      }
     } catch (error: any) {
-      // Keep wizard state intact; just offer a retry (Req 9.3).
-      setErr(apiError(error, 'No se pudo generar la rutina. Intenta de nuevo.'))
+      // Keep wizard state intact and resume from the failed chunk on retry.
+      setErr(
+        apiError(error, 'No se pudo generar este bloque de la rutina. Intenta de nuevo.'),
+      )
     } finally {
-      clearTimer()
       setGenerating(false)
     }
   }
+
+  function generate() {
+    resumeFromRef.current = 0
+    runChunks(0)
+  }
+
+  function retry() {
+    runChunks(resumeFromRef.current)
+  }
+
+  const progressPct = ((activeChunk + 1) / CHUNK_COUNT) * 100
+  const doneChunks = activeChunk // chunks finished before the active one
 
   return (
     <div className="card space-y-4">
@@ -930,18 +931,20 @@ function RoutineStep({ data, dispatch, onDone, onBack }: StepProps) {
 
       {generating ? (
         <div className="py-6 text-center" role="status" aria-live="polite">
-          <p className="display text-2xl text-accent">{ROUTINE_PROGRESS_STAGES[stage]}</p>
+          <p className="display text-2xl text-accent">
+            {doneChunks > 0
+              ? `Bloque ${doneChunks} ✓ — Generando bloque ${activeChunk + 1} de ${CHUNK_COUNT}...`
+              : `Generando bloque ${activeChunk + 1} de ${CHUNK_COUNT}...`}
+          </p>
           <p className="text-xs text-text-dim mt-2">
-            Esto puede tardar hasta dos minutos. No cierres el asistente.
+            Cada bloque tarda unos segundos. No cierres el asistente.
           </p>
           <div className="mx-auto mt-4 h-1.5 w-48 overflow-hidden rounded-full bg-bg-elevated">
             <span
               className={`block h-full rounded-full bg-accent ${
                 reducedMotion ? '' : 'transition-all duration-700'
               }`}
-              style={{
-                width: `${((stage + 1) / ROUTINE_PROGRESS_STAGES.length) * 100}%`,
-              }}
+              style={{ width: `${progressPct}%` }}
             />
           </div>
         </div>
@@ -952,7 +955,7 @@ function RoutineStep({ data, dispatch, onDone, onBack }: StepProps) {
             <button type="button" className="btn-ghost text-sm" onClick={onBack}>
               Atrás
             </button>
-            <button type="button" className="btn-primary text-sm flex-1" onClick={generate}>
+            <button type="button" className="btn-primary text-sm flex-1" onClick={retry}>
               Reintentar
             </button>
           </div>

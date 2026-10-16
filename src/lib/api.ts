@@ -472,6 +472,8 @@ export const goalPlanApi = {
   putTrainingDays: (d: { days_per_week: number }) =>
     api.put('/goal-plan/training-days', d),
   generateRoutine: () => api.post<WorkoutPlan>('/goal-plan/routine/generate'),
+  generateRoutineChunk: (chunkIndex: number, chunkCount: number) =>
+    api.post<WorkoutPlan>('/goal-plan/routine/generate-chunk', { chunk_index: chunkIndex, chunk_count: chunkCount }),
   putRoutine: (d: { structure: WorkoutDay[] }) =>
     api.put<WorkoutPlan>('/goal-plan/routine', d),
   putActiveTargets: (d: { kcal: number; protein_g: number; fat_g: number; carbs_g: number }) =>

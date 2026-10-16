@@ -632,6 +632,98 @@ async def generate_workout_plan(
         return None
 
 
+async def generate_workout_chunk(
+    profile: dict,
+    goal: dict,
+    activity_summary: dict,
+    day_count: int,
+    start_day_number: int,
+    timeout_seconds: float = 120.0,
+) -> dict | None:
+    """Generate ONLY ``day_count`` workout days, numbered from ``start_day_number``.
+
+    Chunked variant of ``generate_workout_plan``: smaller outputs keep the free
+    model from reasoning-in-prose and truncating. Returns the parsed dict
+    {"days": [...]} with ``day_count`` days, or None on timeout/HTTP error/empty/
+    unparseable response. Reuses the same system prompt (asking for ``day_count``
+    days) plus an explicit instruction to number the days from ``start_day_number``
+    and to start the reply directly with "{".
+    """
+    equipment = profile.get("equipment") or []
+    level = profile.get("level")
+    goal_type = goal.get("goal_type")
+    goal_desc = goal.get("performance_target") or goal_type
+
+    system_prompt = _build_workout_prompt(
+        days_per_week=day_count,
+        equipment_text=", ".join(equipment) if equipment else "peso corporal",
+        level=level,
+        goal_desc=goal_desc,
+        activity_summary_text=json.dumps(activity_summary, ensure_ascii=False),
+    )
+
+    user_message = (
+        f"Genera EXACTAMENTE {day_count} d\u00edas de rutina, "
+        f"num\u00e9ralos desde el D\u00eda {start_day_number} "
+        f"(nivel {level}, objetivo {goal_desc}). "
+        "Empieza tu respuesta directamente con el car\u00e1cter { y responde SOLO el JSON."
+    )
+
+    url = f"{settings.openrouter_base_url}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {settings.openrouter_api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": settings.openrouter_model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+        "temperature": 0.2,
+        "max_tokens": 4000,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+            response = await client.post(url, headers=headers, json=payload)
+
+        if response.status_code != 200:
+            logger.error(
+                "OpenRouter workout chunk error %s: %s",
+                response.status_code,
+                response.text[:200],
+            )
+            return None
+
+        data = response.json()
+        choices = data.get("choices", [])
+        if not choices:
+            logger.warning("OpenRouter returned empty choices for workout chunk")
+            return None
+
+        content = choices[0].get("message", {}).get("content", "")
+        if not content or not content.strip():
+            logger.warning("OpenRouter returned empty content for workout chunk")
+            return None
+
+        parsed = _extract_json(content)
+        if parsed is None:
+            logger.warning(
+                "OpenRouter workout chunk returned unparseable JSON: %s",
+                content[:300],
+            )
+            return None
+        return parsed
+
+    except httpx.TimeoutException:
+        logger.warning("OpenRouter workout chunk timeout (%ss)", timeout_seconds)
+        return None
+    except Exception as e:
+        logger.exception("OpenRouter workout chunk request failed: %s", e)
+        return None
+
+
 # ── Meal plan generation (Meal_Planner, Req 6.1, 9.1-9.3) ────────────────────
 # NOTE: this template contains literal JSON braces, so it must NOT be passed
 # through str.format(). The per-request variables (inventory, kcal/macros,
