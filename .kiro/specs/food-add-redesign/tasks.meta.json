@@ -1,0 +1,452 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Añadir la columna `brand` a `Food` y crear los modelos `Recipe` y `RecipeIngredient`": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466234378
+      },
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466245951
+      },
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466331127
+      }
+    ],
+    "1.2 Extender `UserFoodInventory` para referenciar un Food o una Recipe": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466235748
+      },
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466335116
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537020285
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537024496
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537115891
+      }
+    ],
+    "1.3 Crear la migración Alembic `add_recipes_and_food_brand`": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466235978
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537120816
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537273682
+      }
+    ],
+    "2.1 Implementar `compute_recipe_nutrition` en `app/services/recipe_service.py`": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466236168
+      },
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466335989
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537018963
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537025162
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537116981
+      }
+    ],
+    "3.1 Implementar el CRUD de recetas en `recipe_service.py`": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466236321
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537121737
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537274323
+      }
+    ],
+    "3.5 Añadir los endpoints de recetas en `app/routes/meals.py`": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466236476
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537385501
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537468993
+      }
+    ],
+    "4.1 Implementar `add_recipe_to_inventory` en `recipe_service.py`": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466236598
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537296032
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537379161
+      }
+    ],
+    "4.2 Añadir el endpoint `POST /inventory/recipe`": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466236707
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537386250
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537541795
+      }
+    ],
+    "5. Checkpoint — Asegurar que todas las pruebas pasan": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466236805
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537545974
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537641814
+      }
+    ],
+    "6.1 Implementar `unified_search` en `app/services/search_service.py`": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466236906
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537646335
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537795180
+      }
+    ],
+    "6.2 Añadir el respaldo best-effort a Open Food Facts": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466237018
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537802016
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537885933
+      }
+    ],
+    "6.3 Añadir el endpoint `GET /search?q=` con `SearchResultOut`": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466237147
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537802733
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537886518
+      }
+    ],
+    "7.1 Aceptar y validar `brand` en el alta de Food": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466237271
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537647246
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537796017
+      }
+    ],
+    "8. Checkpoint — Asegurar que todas las pruebas pasan": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466237445
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537891001
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537936396
+      }
+    ],
+    "9.1 Extender `src/lib/api.ts`": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466237622
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537937282
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538016193
+      }
+    ],
+    "10.1 Crear `IncrementalSearchBox.tsx` con debounce": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466237792
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538021420
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538140518
+      }
+    ],
+    "10.3 Crear `CreateRecipeForm.tsx` (lazy)": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466237950
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538022199
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538140887
+      }
+    ],
+    "11.1 Crear `AddFoodPanel.tsx` con pestañas y carga diferida": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466238102
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538145877
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538313598
+      }
+    ],
+    "11.2 Conectar la selección de resultados al flujo de confirmación/alta": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466238312
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538313970
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538457969
+      }
+    ],
+    "12.1 Reemplazar la sección \"Agregar alimento\" y las listas completas en `MealsPage.tsx`": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466238459
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538462639
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538655297
+      }
+    ],
+    "13. Checkpoint final — Asegurar que todas las pruebas pasan": [
+      {
+        "executionId": "48d1c5e6-f48d-49a7-849f-81060ddf49d3",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792466238600
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538659385
+      },
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538729636
+      }
+    ],
+    "2. Lógica pura de nutrición de recetas": [
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537117148
+      }
+    ],
+    "1. Modelo de datos y migración": [
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537273930
+      }
+    ],
+    "3. Servicio y endpoints de recetas": [
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537469205
+      }
+    ],
+    "4. Inventario de recetas": [
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537542041
+      }
+    ],
+    "7. Marca (brand) en el alta de alimentos": [
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537796162
+      }
+    ],
+    "6. Búsqueda incremental unificada": [
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792537886762
+      }
+    ],
+    "9. Cliente API del frontend": [
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538016336
+      }
+    ],
+    "10. Componentes de búsqueda y recetas": [
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538141096
+      }
+    ],
+    "11. Escáner de carga diferida y panel unificado": [
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538458237
+      }
+    ],
+    "12. Integrar el Add_Food_Panel en la Meals_Page": [
+      {
+        "executionId": "0da340e5-88e3-4378-a2ac-a49685751455",
+        "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
+        "timestamp": 1792538655477
+      }
+    ]
+  }
+}

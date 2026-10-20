@@ -306,6 +306,7 @@ export const fitnessApi = {
 export interface Food {
   id: number
   name: string
+  brand: string | null
   kcal: number
   protein: number
   fat: number
@@ -318,6 +319,7 @@ export interface Food {
 
 export interface FoodInput {
   name: string
+  brand?: string | null
   kcal: number
   protein: number
   fat: number
@@ -340,6 +342,47 @@ export interface FoodCandidate {
   brand?: string | null
   image_url?: string | null
   source: string   // "local" | "off"
+}
+
+export interface SearchResult {
+  kind: 'catalog' | 'inventory' | 'recipe' | 'off'
+  id?: number | null
+  name: string
+  brand?: string | null
+  kcal?: number | null
+  protein?: number | null
+  fat?: number | null
+  carbs?: number | null
+  fiber?: number | null
+  barcode?: string | null
+  image_url?: string | null
+}
+
+export interface RecipeIngredient {
+  food_id: number
+  food_name: string
+  grams: number
+}
+
+export interface RecipeNutrition {
+  kcal: number
+  protein: number
+  fat: number
+  carbs: number
+  fiber: number | null
+}
+
+export interface Recipe {
+  id: number
+  name: string
+  ingredients: RecipeIngredient[]
+  nutrition: RecipeNutrition
+}
+
+// Input for creating a recipe (ingredients reference a catalog food by id + grams).
+export interface RecipeInput {
+  name: string
+  ingredients: { food_id: number; grams: number }[]
 }
 
 export interface InventoryItem {
@@ -426,6 +469,13 @@ export const mealsApi = {
 
   lookupBarcode: (code: string) => api.get<FoodCandidate>(`/meals/barcode/${encodeURIComponent(code)}`),
   searchFood: (q: string) => api.get<FoodCandidate[]>(`/meals/food-search?q=${encodeURIComponent(q)}`),
+
+  search: (q: string) => api.get<SearchResult[]>(`/meals/search?q=${encodeURIComponent(q)}`),
+  listRecipes: () => api.get<Recipe[]>('/meals/recipes'),
+  createRecipe: (d: RecipeInput) => api.post<Recipe>('/meals/recipes', d),
+  deleteRecipe: (id: number) => api.delete<GenericMessageResponse>(`/meals/recipes/${id}`),
+  addRecipeToInventory: (d: { recipe_id: number; grams: number }) =>
+    api.post<{ recipe_id: number; recipe_name: string; grams: number | null }>('/meals/inventory/recipe', d),
 }
 
 // ── Goal Wizard ───────────────────────────────────────────────────────────────

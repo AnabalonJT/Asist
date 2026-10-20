@@ -19,7 +19,8 @@ from app.database import get_db
 from app.middleware.middleware import get_current_user, get_current_admin
 from app.models.food import Food
 from app.models.user import User
-from app.services import food_lookup_service, meal_service
+from app.models.recipe import Recipe
+from app.services import food_lookup_service, meal_service, recipe_service, search_service
 from app.services.food_lookup_service import (
     ExternalSourceError,
     InvalidBarcodeError,
@@ -30,6 +31,7 @@ from app.services.food_lookup_service import (
 from app.services.meal_service import (
     MEAL_DISCLAIMER,
     DietaryError,
+    ForbiddenError,
     GoalRequiredError,
     LLMError,
     ShoppingRequiresPlanError,
@@ -45,6 +47,7 @@ router = APIRouter()
 # ── Schemas ──────────────────────────────────────────────────────────────────
 class FoodIn(BaseModel):
     name: str
+    brand: str | None = None
     kcal: float
     protein: float
     fat: float
@@ -59,6 +62,7 @@ class FoodIn(BaseModel):
 class FoodOut(BaseModel):
     id: int
     name: str
+    brand: str | None
     kcal: float
     protein: float
     fat: float
@@ -74,6 +78,7 @@ class FoodOut(BaseModel):
         return cls(
             id=f.id,
             name=f.name,
+            brand=f.brand,
             kcal=f.kcal_per_100g,
             protein=f.protein_g_per_100g,
             fat=f.fat_g_per_100g,
@@ -96,6 +101,17 @@ class InventoryIn(BaseModel):
 class InventoryOut(BaseModel):
     food_id: int
     food_name: str
+    grams: float | None
+
+
+class InventoryRecipeIn(BaseModel):
+    recipe_id: int
+    grams: float
+
+
+class InventoryRecipeOut(BaseModel):
+    recipe_id: int
+    recipe_name: str
     grams: float | None
 
 
@@ -140,6 +156,83 @@ class ShoppingItemOut(BaseModel):
     grams: int
 
 
+class RecipeIngredientIn(BaseModel):
+    food_id: int
+    grams: float
+
+
+class RecipeIn(BaseModel):
+    name: str
+    ingredients: list[RecipeIngredientIn]
+
+
+class RecipeNutritionOut(BaseModel):
+    kcal: float
+    protein: float
+    fat: float
+    carbs: float
+    fiber: float | None
+
+
+class RecipeIngredientOut(BaseModel):
+    food_id: int
+    food_name: str
+    grams: float
+
+
+class RecipeOut(BaseModel):
+    id: int
+    name: str
+    ingredients: list[RecipeIngredientOut]
+    nutrition: RecipeNutritionOut
+
+    @classmethod
+    def from_model(cls, r: Recipe) -> "RecipeOut":
+        # Build the ingredient list (food name resolved via the eager-loaded food)
+        # and derive the recipe's per-100 g nutrition from its ingredients' foods.
+        ingredients_out = [
+            RecipeIngredientOut(
+                food_id=ing.food_id,
+                food_name=ing.food.name,
+                grams=ing.grams,
+            )
+            for ing in r.ingredients
+        ]
+        nutrition = recipe_service.compute_recipe_nutrition(
+            [
+                {
+                    "grams": ing.grams,
+                    "kcal_per_100g": ing.food.kcal_per_100g,
+                    "protein_g_per_100g": ing.food.protein_g_per_100g,
+                    "fat_g_per_100g": ing.food.fat_g_per_100g,
+                    "carbs_g_per_100g": ing.food.carbs_g_per_100g,
+                    "fiber_g_per_100g": ing.food.fiber_g_per_100g,
+                }
+                for ing in r.ingredients
+            ]
+        )
+        return cls(
+            id=r.id,
+            name=r.name,
+            ingredients=ingredients_out,
+            nutrition=RecipeNutritionOut(**nutrition),
+        )
+
+
+class SearchResultOut(BaseModel):
+    kind: str                 # "catalog" | "inventory" | "recipe" | "off"
+    id: int | None = None
+    name: str
+    brand: str | None = None
+    kcal: float | None = None
+    protein: float | None = None
+    fat: float | None = None
+    carbs: float | None = None
+    fiber: float | None = None
+    barcode: str | None = None
+    image_url: str | None = None
+
+
 # ── Food catalog (Req 1) ─────────────────────────────────────────────────────
 @router.get("/foods", response_model=list[FoodOut])
 async def list_foods(
@@ -158,6 +251,7 @@ async def create_food(
 ):
     fields = {
         "name": body.name,
+        "brand": body.brand,
         "kcal": body.kcal,
         "protein": body.protein,
         "fat": body.fat,
@@ -186,6 +280,7 @@ async def update_food(
 ):
     fields = {
         "name": body.name,
+        "brand": body.brand,
         "kcal": body.kcal,
         "protein": body.protein,
         "fat": body.fat,
@@ -270,6 +365,55 @@ async def remove_inventory(
 ):
     await meal_service.remove_inventory(db, current_user.id, food_id)
     return {"message": "Alimento eliminado de tu inventario."}
+
+
+@router.post("/inventory/recipe", response_model=InventoryRecipeOut)
+async def add_inventory_recipe(
+    body: InventoryRecipeIn,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add (or update) a recipe in the user's inventory (Req 5.1, 5.4).
+
+    Two-step so the error codes match the spec precisely: the service raises
+    ``ValidationError`` for BOTH an out-of-range grams AND a missing recipe, so
+    we first resolve the recipe via ``recipe_service.get_recipe`` — translating a
+    nonexistent recipe (``ValidationError``) and a foreign recipe
+    (``ForbiddenError``) to a 404 with the same not-found message (Req 8.5
+    privacy: do not reveal another user's recipe). Only then do we add it to the
+    inventory, where any remaining ``ValidationError`` is a grams/validation error
+    → 400 (Req 8.1). User-facing messages are in Spanish.
+    """
+    # 1. Resolve ownership first: nonexistent/foreign recipe → 404.
+    try:
+        recipe = await recipe_service.get_recipe(db, current_user.id, body.recipe_id)
+    except ValidationError:
+        # Recipe does not exist → 404 (Spanish).
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró la receta con id {body.recipe_id}.",
+        )
+    except ForbiddenError:
+        # Owned by another user: do NOT reveal the recipe's existence (Req 8.5
+        # privacy). Map to the same 404 not-found message.
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró la receta con id {body.recipe_id}.",
+        )
+
+    # 2. Add to inventory; any ValidationError here is a grams error → 400.
+    try:
+        entry = await recipe_service.add_recipe_to_inventory(
+            db, current_user.id, body.recipe_id, body.grams
+        )
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    return InventoryRecipeOut(
+        recipe_id=entry.recipe_id,
+        recipe_name=recipe.name,
+        grams=entry.quantity_grams,
+    )
 
 
 # ── Dietary profile (Req 3) ──────────────────────────────────────────────────
@@ -442,6 +586,55 @@ async def get_shopping_list(
     ]
 
 
+# ── Recipes (Req 4) ──────────────────────────────────────────────────────────
+@router.get("/recipes", response_model=list[RecipeOut])
+async def list_recipes(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    recipes = await recipe_service.list_recipes(db, current_user.id)
+    return [RecipeOut.from_model(r) for r in recipes]
+
+
+@router.post("/recipes", response_model=RecipeOut)
+async def create_recipe(
+    body: RecipeIn,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        recipe = await recipe_service.create_recipe(
+            db,
+            current_user.id,
+            body.name,
+            [i.model_dump() for i in body.ingredients],
+        )
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return RecipeOut.from_model(recipe)
+
+
+@router.delete("/recipes/{recipe_id}")
+async def delete_recipe(
+    recipe_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await recipe_service.delete_recipe(db, current_user.id, recipe_id)
+    except ValidationError as e:
+        # Recipe not found → 404 (Spanish).
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ForbiddenError:
+        # Owned by another user: do NOT reveal the recipe's existence (Req 8.4
+        # privacy). Map to a 404 with the same not-found message.
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró la receta con id {recipe_id}.",
+        )
+    return {"message": "Receta eliminada."}
+
+
 # ── Food lookup & search (Food Barcode, Req 2, 3, 6.1) ───────────────────────
 class FoodCandidateOut(BaseModel):
     name: str
@@ -501,6 +694,28 @@ async def lookup_barcode(
     except InvalidBarcodeError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return FoodCandidateOut(**candidate)
+
+
+# ── Incremental search (Req 2) ───────────────────────────────────────────────
+@router.get("/search", response_model=list[SearchResultOut])
+async def search(
+    q: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Unified incremental search scoped to the user (Req 2.1, 2.3, 8.1, 8.5).
+
+    Searches the global catalog, the user's inventory and recipes, and Open Food
+    Facts, returning a flat list of results. Requires auth via
+    ``get_current_user`` (unauthenticated → 401 handled by the dependency, Req
+    8.5) and scopes every query to ``current_user.id`` (Req 8.1 privacy). An
+    invalid search term raises ``ValidationError`` → 400 in Spanish (Req 2.5).
+    """
+    try:
+        results = await search_service.unified_search(db, current_user.id, q)
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return [SearchResultOut(**r) for r in results]
 
 
 @router.get("/food-search", response_model=list[FoodCandidateOut])

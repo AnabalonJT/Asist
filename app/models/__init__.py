@@ -16,6 +16,8 @@ from app.models.dietary_profile import DietaryProfile
 from app.models.nutrition_targets import NutritionTargets
 from app.models.meal_plan import MealPlan
 from app.models.diet_phase_plan import DietPhasePlan
+from app.models.recipe import Recipe
+from app.models.recipe_ingredient import RecipeIngredient
 
 __all__ = [
     "User",
@@ -35,4 +37,6 @@ __all__ = [
     "NutritionTargets",
     "MealPlan",
     "DietPhasePlan",
+    "Recipe",
+    "RecipeIngredient",
 ]

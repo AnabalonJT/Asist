@@ -3,16 +3,13 @@ import {
   mealsApi,
   Food,
   FoodInput,
-  FoodCandidate,
   InventoryItem,
   Dietary,
   Targets,
   MealPlan,
 } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
-import { BarcodeScanner } from '../components/BarcodeScanner'
-import { FoodSearchBox } from '../components/FoodSearchBox'
-import { FoodConfirm } from '../components/FoodConfirm'
+import { AddFoodPanel } from '../components/AddFoodPanel'
 
 function apiError(err: any, fallback: string): string {
   const detail = err?.response?.data?.detail
@@ -60,18 +57,9 @@ export function MealsPage() {
   // ── Catálogo ──
   const [foods, setFoods] = useState<Food[]>([])
 
-  // ── Inventario (alta) ──
-  const [invFoodName, setInvFoodName] = useState('')
-  const [invGrams, setInvGrams] = useState('')
-  const [newFood, setNewFood] = useState<NewFoodForm>(EMPTY_NEW_FOOD)
+  // ── Inventario ──
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [invErr, setInvErr] = useState('')
-  const [invMsg, setInvMsg] = useState('')
-  const [savingInv, setSavingInv] = useState(false)
-
-  // ── Agregar alimento (escáner / búsqueda) ──
-  const [candidate, setCandidate] = useState<FoodCandidate | null>(null)
-  const [lookupErr, setLookupErr] = useState('')
 
   // ── Catálogo admin ──
   const [catName, setCatName] = useState('')
@@ -183,13 +171,6 @@ export function MealsPage() {
     }
   }
 
-  const catalogHasFood = (name: string): boolean => {
-    const norm = name.trim().toLowerCase()
-    return foods.some((f) => f.name.trim().toLowerCase() === norm)
-  }
-
-  const invNeedsNewFood = invFoodName.trim().length > 0 && !catalogHasFood(invFoodName)
-
   function buildFoodInput(name: string, form: NewFoodForm): FoodInput {
     return {
       name: name.trim(),
@@ -204,73 +185,14 @@ export function MealsPage() {
     }
   }
 
-  async function addInventory(e: FormEvent) {
-    e.preventDefault()
-    setSavingInv(true)
-    setInvErr('')
-    setInvMsg('')
-    try {
-      const payload: {
-        food_name: string
-        quantity_grams?: number | null
-        new_food?: FoodInput | null
-      } = {
-        food_name: invFoodName.trim(),
-        quantity_grams: invGrams === '' ? null : Number(invGrams),
-      }
-      if (invNeedsNewFood) {
-        payload.new_food = buildFoodInput(invFoodName, newFood)
-      }
-      await mealsApi.addInventory(payload)
-      setInvMsg('✅ Alimento agregado al inventario')
-      setInvFoodName('')
-      setInvGrams('')
-      setNewFood(EMPTY_NEW_FOOD)
-      await Promise.all([loadInventory(), loadFoods()])
-    } catch (err: any) {
-      setInvErr(apiError(err, 'No se pudo agregar al inventario.'))
-    } finally {
-      setSavingInv(false)
-    }
-  }
-
   async function removeInventory(foodId: number) {
     setInvErr('')
-    setInvMsg('')
     try {
       await mealsApi.removeInventory(foodId)
       await loadInventory()
     } catch (err: any) {
       setInvErr(apiError(err, 'No se pudo quitar del inventario.'))
     }
-  }
-
-  // ── Escáner / búsqueda → confirmación ──
-
-  // Resolve a scanned/typed barcode into a Food_Candidate for confirmation.
-  async function handleBarcode(code: string) {
-    setLookupErr('')
-    try {
-      const { data } = await mealsApi.lookupBarcode(code)
-      setCandidate(data)
-    } catch (err: any) {
-      // 404 (no encontrado) and 503 (fuente no disponible) just show the
-      // Spanish detail; the page must not crash.
-      setLookupErr(apiError(err, 'No se pudo buscar el código.'))
-    }
-  }
-
-  // A name-search result was picked: go straight to confirmation.
-  function handlePick(c: FoodCandidate) {
-    setCandidate(c)
-  }
-
-  // The candidate was confirmed into the inventory: close and refresh lists.
-  async function handleAdded() {
-    setCandidate(null)
-    // A new Food may have been created, so refresh both the inventory and the
-    // catalog/foods list.
-    await Promise.all([loadInventory(), loadFoods()])
   }
 
   async function createFood(e: FormEvent) {
@@ -288,17 +210,6 @@ export function MealsPage() {
       setCatErr(apiError(err, 'No se pudo crear el alimento.'))
     } finally {
       setSavingCat(false)
-    }
-  }
-
-  async function deleteFood(id: number) {
-    setCatErr('')
-    setCatMsg('')
-    try {
-      await mealsApi.deleteFood(id)
-      await loadFoods()
-    } catch (err: any) {
-      setCatErr(apiError(err, 'No se pudo eliminar el alimento.'))
     }
   }
 
@@ -419,167 +330,22 @@ export function MealsPage() {
         </p>
       </div>
 
-      {/* ── Agregar alimento (escáner / búsqueda) ── */}
-      <div className="card">
-        <h2 className="font-display text-lg font-semibold text-text-primary mb-3">
-          Agregar alimento
-        </h2>
-
-        <div className="space-y-4">
-          {candidate ? (
-            /* A food was found: replace the scanner/search with the confirm step. */
-            <FoodConfirm
-              candidate={candidate}
-              onAdded={handleAdded}
-              onCancel={() => setCandidate(null)}
-            />
-          ) : (
-            <>
-              <BarcodeScanner onDetected={handleBarcode} />
-
-              {lookupErr && <p className="text-xs text-danger">{lookupErr}</p>}
-
-              <div className="border-t border-bg-border pt-3">
-                <h3 className="text-xs font-semibold text-text-secondary mb-2">
-                  Buscar por nombre
-                </h3>
-                <FoodSearchBox onPick={handlePick} />
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+      {/* ── Agregar alimento (panel unificado) ── */}
+      <AddFoodPanel
+        onChanged={() => {
+          loadInventory()
+          loadFoods()
+        }}
+      />
 
       {/* ── Inventario / Despensa ── */}
       <div className="card">
         <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Inventario / Despensa</h2>
 
-        <form onSubmit={addInventory} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-text-secondary">Alimento</label>
-              <input
-                type="text"
-                className="input"
-                value={invFoodName}
-                onChange={(e) => setInvFoodName(e.target.value)}
-                placeholder="Ej. Pollo"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs text-text-secondary">Cantidad (g)</label>
-              <input
-                type="number"
-                step="1"
-                className="input"
-                value={invGrams}
-                onChange={(e) => setInvGrams(e.target.value)}
-                placeholder="Opcional"
-              />
-            </div>
-          </div>
-
-          {invNeedsNewFood && (
-            <div className="border border-bg-border rounded-lg p-3 space-y-3">
-              <p className="text-xs text-text-secondary">
-                Este alimento no está en el catálogo. Ingresa sus valores por 100 g:
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-text-secondary">Kcal</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="input"
-                    value={newFood.kcal}
-                    onChange={(e) => setNewFood({ ...newFood, kcal: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-text-secondary">Proteína (g)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="input"
-                    value={newFood.protein}
-                    onChange={(e) => setNewFood({ ...newFood, protein: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-text-secondary">Grasa (g)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="input"
-                    value={newFood.fat}
-                    onChange={(e) => setNewFood({ ...newFood, fat: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-text-secondary">Carbohidratos (g)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="input"
-                    value={newFood.carbs}
-                    onChange={(e) => setNewFood({ ...newFood, carbs: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-text-secondary">Fibra (g, opcional)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="input"
-                    value={newFood.fiber}
-                    onChange={(e) => setNewFood({ ...newFood, fiber: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-4">
-                <label className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newFood.is_meat}
-                    onChange={(e) => setNewFood({ ...newFood, is_meat: e.target.checked })}
-                  />
-                  Es carne
-                </label>
-                <label className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newFood.is_animal}
-                    onChange={(e) => setNewFood({ ...newFood, is_animal: e.target.checked })}
-                  />
-                  Origen animal
-                </label>
-                <label className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newFood.has_gluten}
-                    onChange={(e) => setNewFood({ ...newFood, has_gluten: e.target.checked })}
-                  />
-                  Contiene gluten
-                </label>
-              </div>
-            </div>
-          )}
-
-          {invErr && <p className="text-xs text-danger">{invErr}</p>}
-          {invMsg && <p className="text-xs text-success">{invMsg}</p>}
-
-          <button type="submit" className="btn-primary w-full text-sm" disabled={savingInv}>
-            {savingInv ? 'Agregando...' : 'Agregar al inventario'}
-          </button>
-        </form>
+        {invErr && <p className="text-xs text-danger mb-2">{invErr}</p>}
 
         {/* Inventario actual */}
-        <div className="mt-4 border-t border-bg-border pt-3">
+        <div>
           <h3 className="text-xs font-semibold text-text-secondary mb-2">Tu inventario</h3>
           {inventory.length === 0 ? (
             <p className="text-sm text-text-dim">Tu inventario está vacío.</p>
@@ -600,38 +366,6 @@ export function MealsPage() {
                   >
                     Quitar
                   </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Catálogo (referencia) */}
-        <div className="mt-4 border-t border-bg-border pt-3">
-          <h3 className="text-xs font-semibold text-text-secondary mb-2">
-            Catálogo de alimentos
-          </h3>
-          {foods.length === 0 ? (
-            <p className="text-sm text-text-dim">No hay alimentos en el catálogo.</p>
-          ) : (
-            <ul className="space-y-1">
-              {foods.map((f) => (
-                <li
-                  key={f.id}
-                  className="flex items-center justify-between text-sm text-text-secondary"
-                >
-                  <span>
-                    <span className="text-text-primary">{f.name}</span>
-                    {` — ${f.kcal} kcal/100g`}
-                  </span>
-                  {user?.is_admin && (
-                    <button
-                      onClick={() => deleteFood(f.id)}
-                      className="btn-ghost text-xs text-danger"
-                    >
-                      Eliminar
-                    </button>
-                  )}
                 </li>
               ))}
             </ul>

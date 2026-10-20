@@ -33,6 +33,7 @@ PLAN_DAYS = 7
 
 # Validation ranges
 FOOD_NAME_LEN = (1, 100)
+BRAND_MAX_LEN = 100                      # (Req 1.4) optional brand, max length
 FOOD_KCAL_RANGE = (0.0, 900.0)
 FOOD_MACRO_RANGE = (0.0, 100.0)          # protein/fat/carbs/fiber per 100 g
 INVENTORY_GRAMS_RANGE = (1.0, 100000.0)  # (Req 2.1, 6.4)
@@ -583,6 +584,29 @@ def _barcode_field(fields):
     return normalized or None
 
 
+def _brand_field(fields):
+    """Extract and length-validate the optional ``brand`` from ``fields``.
+
+    ``fields`` may be a dict or an object. The brand is trimmed; an empty value
+    (``None`` or whitespace-only) is treated as no brand and returns ``None``.
+    A brand longer than ``BRAND_MAX_LEN`` (100) raises ``ValidationError``
+    (Spanish, Req 1.4). Runs before any mutation ("validate before mutate")."""
+    if isinstance(fields, dict):
+        raw = fields.get("brand")
+    else:
+        raw = getattr(fields, "brand", None)
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        raise ValidationError("La marca no es válida: máximo 100 caracteres.")
+    trimmed = raw.strip()
+    if not trimmed:
+        return None
+    if len(trimmed) > BRAND_MAX_LEN:
+        raise ValidationError("La marca no es válida: máximo 100 caracteres.")
+    return trimmed
+
+
 def _food_fields(fields):
     """Extract the six nutrition fields from ``fields`` (a dict or an object).
 
@@ -643,6 +667,8 @@ async def create_food(
 
     # 1. Validate the nutrition fields first (raises on invalid, no mutation).
     validate_food_fields(name, kcal, protein, fat, carbs, fiber)
+    # Brand is optional; validate its length before any mutation (Req 1.4).
+    brand = _brand_field(fields)
 
     # 2. Invariant: meat/fish is always of animal origin.
     is_meat = bool(is_meat)
@@ -658,6 +684,7 @@ async def create_food(
 
     food = Food(
         name=name.strip() if isinstance(name, str) else name,
+        brand=brand,
         kcal_per_100g=float(kcal),
         protein_g_per_100g=float(protein),
         fat_g_per_100g=float(fat),
@@ -700,6 +727,8 @@ async def update_food(
 
     # 1. Validate the new values first.
     validate_food_fields(name, kcal, protein, fat, carbs, fiber)
+    # Brand is optional; validate its length before any mutation (Req 1.4).
+    brand = _brand_field(fields)
 
     # 2. Invariant.
     is_meat = bool(is_meat)
@@ -715,6 +744,7 @@ async def update_food(
 
     # All checks passed → mutate.
     food.name = name.strip() if isinstance(name, str) else name
+    food.brand = brand
     food.kcal_per_100g = float(kcal)
     food.protein_g_per_100g = float(protein)
     food.fat_g_per_100g = float(fat)
@@ -929,6 +959,8 @@ async def add_inventory(
 
         # Validate before mutating (raises on invalid, preserving state).
         validate_food_fields(name, kcal, protein, fat, carbs, fiber)
+        # Brand is optional; validate its length before any mutation (Req 1.4).
+        brand = _brand_field(new_food_fields)
 
         def _flag(key):
             if isinstance(new_food_fields, dict):
@@ -941,6 +973,7 @@ async def add_inventory(
 
         food = Food(
             name=name.strip() if isinstance(name, str) else name,
+            brand=brand,
             kcal_per_100g=float(kcal),
             protein_g_per_100g=float(protein),
             fat_g_per_100g=float(fat),

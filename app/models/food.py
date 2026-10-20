@@ -25,5 +25,6 @@ class Food(Base):
     has_gluten: Mapped[bool] = mapped_column(Boolean, default=False)
 
     barcode: Mapped[str | None] = mapped_column(String(14), unique=True, index=True, nullable=True)  # EAN/UPC digits; optional; lets a scanned food be recognized next time (Req 1)
+    brand: Mapped[str | None] = mapped_column(String(100), nullable=True)  # optional brand (Req 1)
 
     created_at: Mapped[datetime] = mapped_column(default=func.now())
