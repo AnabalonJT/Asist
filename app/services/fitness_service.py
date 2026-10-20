@@ -845,11 +845,23 @@ async def generate_workout_plan_chunk(
         "target_date": profile.target_date,
     }
 
+    # Names of days already generated in earlier chunks, so the model produces
+    # distinct, complementary days instead of repeating the same focus.
+    existing_day_names: list[str] = []
+    if chunk_index > 0:
+        existing = await get_active_plan(db, user_id)
+        if existing is not None:
+            for d in existing.structure_list():
+                name = (d or {}).get("day") or (d or {}).get("name")
+                if name:
+                    existing_day_names.append(str(name))
+
     parsed = None
     for _attempt in range(2):
         parsed = await llm_service.generate_workout_chunk(
             profile_dict, goal_dict, activity_summary,
             day_count=day_count, start_day_number=start_day_number,
+            existing_days=existing_day_names,
             timeout_seconds=120.0,
         )
         if parsed is not None:

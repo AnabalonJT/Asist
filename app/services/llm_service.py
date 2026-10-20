@@ -638,6 +638,7 @@ async def generate_workout_chunk(
     activity_summary: dict,
     day_count: int,
     start_day_number: int,
+    existing_days: list[str] | None = None,
     timeout_seconds: float = 120.0,
 ) -> dict | None:
     """Generate ONLY ``day_count`` workout days, numbered from ``start_day_number``.
@@ -662,10 +663,25 @@ async def generate_workout_chunk(
         activity_summary_text=json.dumps(activity_summary, ensure_ascii=False),
     )
 
+    existing_days = existing_days or []
+    if existing_days:
+        prev_text = "; ".join(existing_days)
+        anti_repeat = (
+            f"Ya existen estos d\u00edas en la rutina: {prev_text}. "
+            "Genera d\u00edas DISTINTOS y COMPLEMENTARIOS (no repitas el mismo enfoque "
+            "ni el mismo nombre; cubre grupos musculares diferentes para equilibrar la semana). "
+        )
+    else:
+        anti_repeat = ""
+
     user_message = (
         f"Genera EXACTAMENTE {day_count} d\u00edas de rutina, "
         f"num\u00e9ralos desde el D\u00eda {start_day_number} "
         f"(nivel {level}, objetivo {goal_desc}). "
+        + anti_repeat +
+        "Cada d\u00eda debe tener entre 4 y 5 ejercicios (nunca menos de 4). "
+        "El valor 'day' de cada d\u00eda debe ser \u00fanico y descriptivo (p. ej. 'D\u00eda 1 - Empuje', "
+        "'Pierna', 'Cuerpo completo'). "
         "Empieza tu respuesta directamente con el car\u00e1cter { y responde SOLO el JSON."
     )
 

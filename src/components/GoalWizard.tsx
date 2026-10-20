@@ -235,7 +235,7 @@ function reducer(state: WizardData, action: Action): WizardData {
 // ── Shared UI primitives ─────────────────────────────────────────────────────
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="text-xs text-text-secondary">{label}</label>
       {children}
     </div>
@@ -692,7 +692,7 @@ function GoalStep({ data, dispatch, onDone, onBack }: StepProps) {
           <Field label="Fecha objetivo">
             <input
               type="date"
-              className="input"
+              className="input min-w-0 max-w-full"
               value={form.target_date}
               onChange={(e) => dispatch({ type: 'setGoal', patch: { target_date: e.target.value } })}
               required
