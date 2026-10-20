@@ -183,3 +183,25 @@ El plan implementa el rediseño de "Agregar alimento" en pasos incrementales, re
   ]
 }
 ```
+
+
+## Estado de cierre
+
+El feature está **implementado, verificado y desplegado** en Fly.io (commit en `Develop`).
+Todas las tareas obligatorias están completas; la suite pasa (150 tests) y el frontend
+compila con la cámara en un chunk diferido aparte.
+
+Tests opcionales (`*`): se completó **2.2** (nutrición de recetas, función pura).
+Los demás quedaron **omitidos intencionalmente** porque requieren infraestructura de
+pruebas que el repositorio no tiene todavía y cuyo montaje excede el alcance de estos
+tests opcionales:
+
+- **3.2, 3.3, 3.4, 4.3, 6.4, 7.2, 7.3** — necesitan una sesión async contra una base de
+  datos de prueba (no existe `conftest.py` ni fixture de DB async en el repo).
+- **6.6** — test de integración con `food_lookup_service` mockeado (depende del harness
+  async anterior).
+- **10.2, 11.3, 12.2** — tests de frontend que requieren Vitest + React Testing Library
+  (no instalados ni configurados en el proyecto).
+
+Si en el futuro se desea esta cobertura, montar primero los dos harnesses (DB async de
+prueba y Vitest/RTL) como una tarea dedicada y luego implementar estos tests.
