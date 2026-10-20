@@ -62,6 +62,36 @@ const STEP_LABELS: Record<Step, string> = {
   summary: 'Resumen',
 }
 
+// ── Session freshness ──────────────────────────────────────────
+// The backend resumes the wizard at the first incomplete step. After a period
+// of inactivity that "resume at the summary" behaviour feels stale, so we start
+// over from the first step instead. Activity is tracked client-side with a
+// timestamp in localStorage.
+const WIZARD_ACTIVITY_KEY = 'goalWizardLastActivity'
+const WIZARD_SESSION_TTL_MS = 30 * 60 * 1000 // 30 minutes
+
+/** True if the last recorded wizard activity is older than the TTL (or absent). */
+function wizardSessionIsStale(): boolean {
+  try {
+    const raw = localStorage.getItem(WIZARD_ACTIVITY_KEY)
+    if (!raw) return true
+    const last = Number(raw)
+    if (!Number.isFinite(last)) return true
+    return Date.now() - last > WIZARD_SESSION_TTL_MS
+  } catch {
+    return true
+  }
+}
+
+/** Record "the user is using the wizard now". */
+function markWizardActivity(): void {
+  try {
+    localStorage.setItem(WIZARD_ACTIVITY_KEY, String(Date.now()))
+  } catch {
+    /* ignore storage failures (private mode, quota) */
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function apiError(err: any, fallback: string): string {
   const detail = err?.response?.data?.detail
@@ -309,7 +339,12 @@ export function GoalWizard({ onClose }: { onClose: () => void }) {
       try {
         const { data: s } = await goalPlanApi.getState()
         if (cancelled) return
-        dispatch({ type: 'goto', step: s.step })
+        // After a period of inactivity, start over from the first step instead
+        // of resuming where the user left off; otherwise resume at the backend's
+        // first-incomplete step (Req 1.6).
+        const stale = wizardSessionIsStale()
+        dispatch({ type: 'goto', step: stale ? STEPS[0] : s.step })
+        markWizardActivity()
       } catch (err: any) {
         if (!cancelled) setBootError(apiError(err, 'No se pudo iniciar el asistente.'))
       } finally {
@@ -324,6 +359,7 @@ export function GoalWizard({ onClose }: { onClose: () => void }) {
   const activeIndex = STEPS.indexOf(data.step)
 
   function goTo(step: Step) {
+    markWizardActivity()
     dispatch({ type: 'goto', step })
   }
 

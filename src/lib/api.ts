@@ -12,11 +12,15 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// On 401 → clear token and redirect to login
+// On 401 → clear the session and redirect to login — but NOT for the login/
+// register calls themselves, where a 401 just means wrong credentials and the
+// form should show the error while keeping the typed email/password.
 api.interceptors.response.use(
   (r) => r,
   (err) => {
-    if (err.response?.status === 401) {
+    const url: string = err.config?.url ?? ''
+    const isAuthAttempt = url.includes('/auth/login') || url.includes('/auth/register')
+    if (err.response?.status === 401 && !isAuthAttempt) {
       localStorage.removeItem('token')
       window.location.href = '/login'
     }
