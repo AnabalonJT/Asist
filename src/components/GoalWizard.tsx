@@ -339,6 +339,32 @@ export function GoalWizard({ onClose }: { onClose: () => void }) {
       try {
         const { data: s } = await goalPlanApi.getState()
         if (cancelled) return
+        // Prefill every field the user already saved in their profile/goal so we
+        // never ask for data (weight, height, etc.) that already exists.
+        const patch: Partial<WizardData> = {}
+        const pf: Partial<ProfileForm> = {}
+        if (s.weight_kg != null) pf.weight_kg = String(s.weight_kg)
+        if (s.height_cm != null) pf.height_cm = String(s.height_cm)
+        if (s.age != null) pf.age = String(s.age)
+        if (s.sex != null) pf.sex = s.sex
+        if (s.level != null) pf.level = s.level
+        if (s.days_per_week != null) pf.days_per_week = String(s.days_per_week)
+        if (s.minutes_per_session != null) pf.minutes_per_session = String(s.minutes_per_session)
+        if (Object.keys(pf).length > 0) {
+          patch.profileForm = { ...EMPTY_PROFILE, ...pf }
+        }
+        const gf: Partial<GoalForm> = {}
+        if (s.target_weight_kg != null) gf.target_weight_kg = String(s.target_weight_kg)
+        if (s.target_date != null) gf.target_date = s.target_date
+        if (Object.keys(gf).length > 0) {
+          patch.goalForm = { target_weight_kg: '', target_date: '', ...gf }
+        }
+        if (s.equipment && s.equipment.length > 0) patch.equipment = s.equipment
+        if (s.days_per_week != null) patch.trainingDays = String(s.days_per_week)
+        if (Object.keys(patch).length > 0) {
+          dispatch({ type: 'hydrate', patch })
+        }
+
         // After a period of inactivity, start over from the first step instead
         // of resuming where the user left off; otherwise resume at the backend's
         // first-incomplete step (Req 1.6).
@@ -370,7 +396,7 @@ export function GoalWizard({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-bg-base/95 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex flex-col bg-bg-base/95 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Asistente de objetivo"
@@ -409,7 +435,7 @@ export function GoalWizard({ onClose }: { onClose: () => void }) {
       </header>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+      <div className="flex-1 overflow-y-auto px-4 pt-6 pb-24 sm:px-6">
         <div className="mx-auto max-w-xl">
           {loading ? (
             <p className="py-10 text-center text-sm text-text-dim">Cargando asistente...</p>

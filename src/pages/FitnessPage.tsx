@@ -1,6 +1,7 @@
 import { useEffect, useState, FormEvent } from 'react'
 import {
   fitnessApi,
+  goalPlanApi,
   FitnessProfile,
   GoalResult,
   WorkoutPlan,
@@ -91,6 +92,7 @@ export function FitnessPage() {
   const [planMessage, setPlanMessage] = useState('')
   const [planErr, setPlanErr] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [genProgress, setGenProgress] = useState('')
 
   // ── Weight / progress state ──
   const [weightVal, setWeightVal] = useState('')
@@ -235,17 +237,28 @@ export function FitnessPage() {
     }
   }
 
+  // Generate the routine in CHUNK_COUNT smaller LLM calls that accumulate
+  // server-side into one plan. The free model returns empty/truncated content
+  // for a full week, but handles these small blocks reliably.
   async function generatePlan() {
+    const CHUNK_COUNT = 3
     setGenerating(true)
     setPlanErr('')
     try {
-      const { data } = await fitnessApi.generatePlan()
-      setPlan(data)
+      let latest: WorkoutPlan | null = null
+      for (let i = 0; i < CHUNK_COUNT; i++) {
+        setGenProgress(`Generando bloque ${i + 1} de ${CHUNK_COUNT}...`)
+        const { data } = await goalPlanApi.generateRoutineChunk(i, CHUNK_COUNT)
+        latest = data
+        setPlan(data)
+      }
+      if (latest) setPlan(latest)
       setPlanMessage('')
       loadAdherence()
     } catch (err: any) {
       setPlanErr(apiError(err, 'No se pudo generar la rutina. Intenta de nuevo.'))
     } finally {
+      setGenProgress('')
       setGenerating(false)
     }
   }
@@ -446,7 +459,7 @@ export function FitnessPage() {
     <div className="card">
       <h2 className="font-display text-lg font-semibold text-text-primary mb-3">Rutina</h2>
       <button onClick={generatePlan} className="btn-primary w-full text-sm mb-3" disabled={generating}>
-        {generating ? 'Generando...' : 'Generar rutina'}
+        {generating ? (genProgress || 'Generando...') : 'Generar rutina'}
       </button>
 
       {planErr && (

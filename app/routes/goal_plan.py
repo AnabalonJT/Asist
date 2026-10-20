@@ -43,6 +43,19 @@ class WizardStateOut(BaseModel):
     has_goal: bool
     has_plan: bool
     has_routine: bool
+    # Saved values so the wizard can prefill fields the user already filled in
+    # their profile/goal instead of asking for them again. All optional.
+    weight_kg: float | None = None
+    height_cm: float | None = None
+    age: int | None = None
+    sex: str | None = None
+    level: str | None = None
+    days_per_week: int | None = None
+    minutes_per_session: int | None = None
+    goal_type: str | None = None
+    target_weight_kg: float | None = None
+    target_date: str | None = None
+    equipment: list[str] = []
 
 
 class ProfileIn(BaseModel):
@@ -204,12 +217,24 @@ async def get_state(
     step = goal_wizard_service.resolve_wizard_step(
         profile_dict, plan_dict, has_routine
     )
+    pd = profile_dict or {}
     return WizardStateOut(
         step=step,
         profile_complete=goal_wizard_service.is_profile_complete(profile_dict),
         has_goal=bool(profile_dict and profile_dict.get("goal_type")),
         has_plan=plan is not None,
         has_routine=has_routine,
+        weight_kg=pd.get("weight_kg"),
+        height_cm=pd.get("height_cm"),
+        age=pd.get("age"),
+        sex=pd.get("sex"),
+        level=pd.get("level"),
+        days_per_week=pd.get("days_per_week"),
+        minutes_per_session=pd.get("minutes_per_session"),
+        goal_type=pd.get("goal_type"),
+        target_weight_kg=pd.get("target_weight_kg"),
+        target_date=pd.get("target_date"),
+        equipment=pd.get("equipment") or [],
     )
 
 

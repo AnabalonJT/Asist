@@ -455,6 +455,18 @@ export interface WizardState {
   has_goal: boolean
   has_plan: boolean
   has_routine: boolean
+  // Saved values for prefilling the wizard (all optional).
+  weight_kg?: number | null
+  height_cm?: number | null
+  age?: number | null
+  sex?: string | null
+  level?: string | null
+  days_per_week?: number | null
+  minutes_per_session?: number | null
+  goal_type?: string | null
+  target_weight_kg?: number | null
+  target_date?: string | null
+  equipment?: string[]
 }
 
 export const goalPlanApi = {
