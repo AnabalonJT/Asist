@@ -4,7 +4,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Barlow', 'system-ui', 'sans-serif'],
+        display: ['"Barlow Condensed"', 'Barlow', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
       colors: {
@@ -15,22 +16,24 @@ export default {
           border: '#232840',
         },
         accent: {
-          DEFAULT: '#6c8cff',
-          dim: '#3a4f99',
-          glow: 'rgba(108,140,255,0.15)',
+          DEFAULT: '#f97316',
+          dim: '#9a4a12',
+          hover: '#fb8a3c',
+          glow: 'rgba(249,115,22,0.14)',
         },
         text: {
           primary: '#e8eaf0',
           secondary: '#8891a8',
           dim: '#4a5168',
         },
-        success: '#4ade80',
+        success: '#22c55e',
+        'success-glow': 'rgba(34,197,94,0.14)',
         warning: '#fbbf24',
         danger: '#f87171',
         tg: '#229ED9',
       },
       boxShadow: {
-        glow: '0 0 24px rgba(108,140,255,0.12)',
+        glow: '0 0 28px rgba(249,115,22,0.16)',
         card: '0 1px 3px rgba(0,0,0,0.4)',
       },
     },

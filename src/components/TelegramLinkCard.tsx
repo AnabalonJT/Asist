@@ -10,13 +10,19 @@ export function TelegramLinkCard({ linked, onLinked }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const [botUrl, setBotUrl] = useState('')
+
   const handleConnect = async () => {
     setError('')
     setLoading(true)
     try {
       const { data } = await authApi.linkingToken()
-      // Open bot in new tab — if already started, goes straight to chat
-      window.open(data.bot_url, '_blank', 'noopener,noreferrer')
+      setBotUrl(data.bot_url)
+
+      // Try to open Telegram (works on desktop, may fail on some mobile browsers)
+      const opened = window.open(data.bot_url, '_blank')
+      // If popup was blocked or didn't open, the user can use the link shown below
+
       // Poll /me every 2s for up to 60s to detect linking
       let attempts = 0
       const interval = setInterval(async () => {
@@ -25,6 +31,7 @@ export function TelegramLinkCard({ linked, onLinked }: Props) {
           const me = await authApi.me()
           if (me.data.telegram_linked) {
             clearInterval(interval)
+            setBotUrl('')
             onLinked()
           }
         } catch {
@@ -86,6 +93,19 @@ export function TelegramLinkCard({ linked, onLinked }: Props) {
             )}
             {loading ? 'Esperando vinculación...' : 'Abrir en Telegram'}
           </button>
+          {botUrl && (
+            <div className="mt-3 p-2 bg-bg-elevated rounded-lg">
+              <p className="text-xs text-text-dim mb-1">¿No se abrió? Toca este enlace:</p>
+              <a
+                href={botUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-accent underline break-all"
+              >
+                {botUrl.replace('https://t.me/', 't.me/')}
+              </a>
+            </div>
+          )}
         </div>
       </div>
     </div>

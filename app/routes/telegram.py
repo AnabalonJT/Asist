@@ -1,101 +1,1479 @@
-"""Telegram webhook route.
+"""Telegram webhook route — production endpoint for incoming messages.
 
-Handles:
-- /start <token>  → link Telegram account to web account
-- Any other text  → placeholder for LLM activity parsing (next phase)
+In production, Telegram sends updates here via HTTPS webhook.
+In development, polling mode handles messages (see telegram_bot.py).
 """
 import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import select, update
+from sqlalchemy import select, update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
+from app.models.activity import Activity
+from app.models.reminder import Reminder
 from app.services.auth_service import AuthError, auth_service
+from app.services.activity_types import normalize_activity_type
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# Deduplication: track processed update_ids to prevent Telegram retries
+_processed_updates: set[int] = set()
 
-# ── Telegram send helper (lightweight, no PTB needed for webhooks) ────────────
 
-async def _send(chat_id: int, text: str) -> None:
-    """Fire-and-forget Telegram sendMessage via httpx."""
+
+
+
+async def _send(chat_id: int, text: str, parse_mode: str = "Markdown") -> None:
+    """Send a message via Telegram Bot API."""
     import httpx
-
     url = f"https://api.telegram.org/bot{settings.bot_token}/sendMessage"
     try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            await client.post(url, json={"chat_id": chat_id, "text": text})
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(url, json={"chat_id": chat_id, "text": text, "parse_mode": parse_mode})
     except Exception as e:
-        logger.warning("Failed to send Telegram message to %s: %s", chat_id, e)
+        logger.warning("Failed to send message to %s: %s", chat_id, e)
 
 
-# ── Webhook endpoint ──────────────────────────────────────────────────────────
+async def _send_typing(chat_id: int) -> None:
+    import httpx
+    url = f"https://api.telegram.org/bot{settings.bot_token}/sendChatAction"
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            await client.post(url, json={"chat_id": chat_id, "action": "typing"})
+    except Exception:
+        pass
+
 
 @router.post("/webhook")
 async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """Receive Telegram updates via webhook."""
-
-    # Optional secret token validation
     if settings.telegram_webhook_secret:
         header_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
         if header_secret != settings.telegram_webhook_secret:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bad secret")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
     try:
         update: dict[str, Any] = await request.json()
     except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+
+    # Deduplicate: Telegram may retry if we're slow to respond
+    update_id = update.get("update_id")
+    if update_id and update_id in _processed_updates:
+        return {"ok": True}
+    if update_id:
+        _processed_updates.add(update_id)
+        # Keep set from growing forever (max 1000 entries)
+        if len(_processed_updates) > 1000:
+            _processed_updates.clear()
 
     message = update.get("message") or update.get("edited_message")
     if not message:
-        return {"ok": True}  # Ignore non-message updates
+        return {"ok": True}
 
     chat_id: int = message["chat"]["id"]
     text: str = message.get("text", "").strip()
-
     if not text:
         return {"ok": True}
 
-    # ── /start <token> ────────────────────────────────────────────────────────
     if text.startswith("/start"):
-        parts = text.split(maxsplit=1)
-        if len(parts) < 2:
-            await _send(chat_id, "👋 Envía /start <token> para vincular tu cuenta.")
-            return {"ok": True}
-
-        token = parts[1].strip()
-        try:
-            user = await auth_service.validate_linking_token(db, token)
-        except AuthError as e:
-            logger.info("Invalid linking token %s: %s", token, e)
-            return {"ok": True}  # Ignore silently per spec
-
-        # Save telegram_chat_id on user
-        await db.execute(
-            update(User)
-            .where(User.id == user.id)
-            .values(telegram_chat_id=chat_id)
-        )
-        await _send(chat_id, "✅ ¡Cuenta vinculada! Ya puedes registrar actividades.")
-        logger.info("Linked telegram_chat_id=%s to user_id=%s", chat_id, user.id)
+        await _handle_start(chat_id, text, db)
         return {"ok": True}
 
-    # ── Regular message from linked user ──────────────────────────────────────
     result = await db.execute(select(User).where(User.telegram_chat_id == chat_id))
     user = result.scalar_one_or_none()
-
     if not user:
-        # Unlinked user — ignore per spec
         return {"ok": True}
 
-    # TODO (next phase): pass text to LLM service for activity parsing
-    await _send(
-        chat_id,
-        f"📝 Recibido: \"{text}\"\n\n⚙️ El procesamiento de actividades estará disponible pronto.",
-    )
+    await _send_typing(chat_id)
+    try:
+        await _handle_message(chat_id, text, user, db)
+    except Exception as e:
+        logger.exception("Error handling message from chat_id=%s: %s", chat_id, e)
+        await _send(chat_id, "❌ Ocurrió un error procesando tu mensaje. Intenta de nuevo.")
     return {"ok": True}
+
+
+async def _handle_start(chat_id: int, text: str, db: AsyncSession) -> None:
+    parts = text.split(maxsplit=1)
+    if len(parts) < 2:
+        await _send(chat_id, "👋 ¡Hola! Para vincular tu cuenta, usa el enlace desde la web.")
+        return
+
+    token = parts[1].strip()
+    try:
+        user = await auth_service.validate_linking_token(db, token)
+        await db.execute(sql_update(User).where(User.id == user.id).values(telegram_chat_id=chat_id))
+        name = user.email.split("@")[0]
+        await _send(chat_id,
+            f"✅ ¡Cuenta vinculada!\n\nHola {name} 👋\n\n"
+            f"Soy tu asistente de seguimiento:\n\n"
+            f"🏃 *Deportes*: \"Corrí 5km\"\n"
+            f"💪 *Fuerza*: \"4 series press banca 80kg\"\n"
+            f"📚 *Hábitos*: \"Leí 30 min\"\n"
+            f"⏰ *Recordatorios*: \"Recuérdame correr a las 7:30\"\n\n"
+            f"¡Envíame lo que hiciste! 🚀"
+        )
+    except AuthError:
+        await _send(chat_id, "⚠️ Enlace no válido o ya usado. Genera uno nuevo desde la web.")
+    except Exception as e:
+        logger.exception("Error linking: %s", e)
+        await db.rollback()
+
+
+def _detect_when_keywords(text: str) -> str | None:
+    """Detect time references in the message text."""
+    lower = text.lower()
+    
+    if "ayer" in lower and "anteayer" not in lower:
+        return "yesterday"
+    if "anteayer" in lower:
+        return "2_days_ago"
+    if "la semana pasada" in lower:
+        return "7_days_ago"
+    if "hace 2 días" in lower or "hace dos días" in lower:
+        return "2_days_ago"
+    if "hace 3 días" in lower or "hace tres días" in lower:
+        return "3_days_ago"
+    
+    # Day names: "el lunes", "el martes", etc.
+    import re
+    day_match = re.search(r'(?:el\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)', lower)
+    if day_match:
+        return f"last_{day_match.group(1)}"
+    
+    return None  # means "now"
+
+
+def _resolve_when(when: str | None, user_now) -> 'datetime':
+    """Resolve a 'when' string to an actual datetime."""
+    from datetime import timedelta
+    import re
+
+    if not when or when == "now":
+        return user_now
+
+    lower = when.lower().strip()
+
+    if lower == "yesterday":
+        return user_now - timedelta(days=1)
+    elif lower in ("anteayer", "2_days_ago", "2 days ago"):
+        return user_now - timedelta(days=2)
+    elif lower in ("3_days_ago", "3 days ago"):
+        return user_now - timedelta(days=3)
+    elif lower in ("7_days_ago", "last_week", "la semana pasada"):
+        return user_now - timedelta(days=7)
+
+    # Try "X_days_ago" pattern
+    days_match = re.match(r'(\d+)_?days?_?ago', lower)
+    if days_match:
+        return user_now - timedelta(days=int(days_match.group(1)))
+
+    # Try day names: "last_monday", "last_tuesday", etc.
+    day_map = {"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+               "friday": 4, "saturday": 5, "sunday": 6,
+               "lunes": 0, "martes": 1, "miercoles": 2, "miércoles": 2,
+               "jueves": 3, "viernes": 4, "sabado": 5, "sábado": 5, "domingo": 6}
+    for day_name, day_num in day_map.items():
+        if day_name in lower:
+            days_back = (user_now.weekday() - day_num) % 7
+            if days_back == 0:
+                days_back = 7  # "last monday" when today is monday = 7 days ago
+            return user_now - timedelta(days=days_back)
+
+    # Try ISO date: "2026-07-05"
+    try:
+        from datetime import datetime
+        parsed = datetime.fromisoformat(lower)
+        return parsed.replace(hour=user_now.hour, minute=user_now.minute)
+    except (ValueError, TypeError):
+        pass
+
+    return user_now
+
+
+def _detect_goal_keywords(text: str) -> dict | None:
+    """
+    Detect goal/meta intent from keywords.
+    Triggers on: "meta", "quiero", "objetivo" + activity + frequency.
+    """
+    import re
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    lower = text.lower().strip()
+
+    # Must contain a goal trigger word
+    triggers = ["meta", "quiero", "objetivo", "mi meta", "propósito", "proposito"]
+    if not any(t in lower for t in triggers):
+        return None
+
+    # Don't trigger if it's a challenge (multiple activities)
+    # Check if there are commas or " y " separating multiple activities
+    parts = re.split(r'\s*[,]\s*|\s+y\s+', lower)
+    activity_parts = [p for p in parts if len(p.strip()) > 3]
+    if len(activity_parts) > 2:
+        return None  # Let challenge detector handle it
+
+    # Extract frequency
+    target_count = 1
+    period = "weekly"
+
+    freq_match = re.search(r'(\d+)\s*(?:veces?\s*(?:por|a la|la)\s*semana|x\s*semana)', lower)
+    if freq_match:
+        target_count = int(freq_match.group(1))
+        period = "weekly"
+    elif re.search(r'todos\s*los\s*d[ií]as|diario|cada\s*d[ií]a', lower):
+        target_count = 1
+        period = "daily"
+    elif re.search(r'(\d+)\s*(?:veces?\s*(?:por|al)\s*mes)', lower):
+        m = re.search(r'(\d+)\s*(?:veces?\s*(?:por|al)\s*mes)', lower)
+        target_count = int(m.group(1))
+        period = "monthly"
+    else:
+        # "2 veces" without "por semana" → assume weekly
+        simple_freq = re.search(r'(\d+)\s*veces?', lower)
+        if simple_freq:
+            target_count = int(simple_freq.group(1))
+            period = "weekly"
+
+    # Extract duration/ends_at
+    ends_at = None
+    now = datetime.now(ZoneInfo("America/Santiago"))
+
+    days_match = re.search(r'(\d+)\s*d[ií]as', lower)
+    months_match = re.search(r'(\d+)\s*mes(?:es)?', lower)
+    week_match = re.search(r'(?:pr[oó]xima|esta|una)\s*semana', lower)
+
+    if days_match:
+        ends_at = (now + timedelta(days=int(days_match.group(1)))).strftime("%Y-%m-%d")
+    elif months_match:
+        ends_at = (now + timedelta(days=int(months_match.group(1)) * 30)).strftime("%Y-%m-%d")
+    elif week_match:
+        ends_at = (now + timedelta(days=7)).strftime("%Y-%m-%d")
+
+    # Extract activity type
+    activity_text = lower
+    for t in triggers:
+        activity_text = activity_text.replace(t, "")
+    activity_text = re.sub(r'\d+\s*(?:veces?\s*(?:por|a la|la)\s*semana|x\s*semana)', '', activity_text)
+    activity_text = re.sub(r'\d+\s*veces?', '', activity_text)
+    activity_text = re.sub(r'todos\s*los\s*d[ií]as|diario|cada\s*d[ií]a', '', activity_text)
+    activity_text = re.sub(r'(\d+)\s*(?:d[ií]as|mes(?:es)?)', '', activity_text)
+    activity_text = re.sub(r'(?:pr[oó]xima|esta|una|para la|por|durante)\s*semana', '', activity_text)
+    activity_text = re.sub(r'\b(para|de|hacer|es|la|el|por|durante|mi|mis|:)\b', '', activity_text)
+    activity_text = re.sub(r'\s+', ' ', activity_text).strip(" .,;:-")
+
+    if not activity_text or len(activity_text) < 2:
+        return None
+
+    # Map to activity type
+    activity_map = {
+        "deporte": "gym", "gimnasio": "gym", "gym": "gym", "ejercicio": "gym",
+        "correr": "running", "caminar": "walking", "nadar": "swimming",
+        "meditar": "meditation", "meditación": "meditation",
+        "leer": "reading", "estudiar": "study", "yoga": "yoga",
+    }
+    activity_type = activity_map.get(activity_text, activity_text)
+
+    return {
+        "intent": "goal",
+        "data": {
+            "action": "create",
+            "activity_type": activity_type,
+            "target_count": target_count,
+            "period": period,
+            "description": activity_text.capitalize() + (f" {target_count}x/{period}" if target_count > 1 else " diario" if period == "daily" else ""),
+            "ends_at": ends_at,
+        }
+    }
+
+
+def _detect_fitness_keywords(text: str) -> dict | None:
+    """
+    Detect fitness/workout-routine intent from keywords.
+    Triggers on: "rutina", "entrenamiento", "plan de gym", "genérame una rutina",
+    "mi rutina". Returns a fake LLM fitness response dict or None.
+    """
+    import re
+
+    lower = text.lower().strip()
+
+    triggers = [
+        "rutina", "entrenamiento", "plan de gym", "plan de entrenamiento",
+        "plan de gimnasio", "genérame una rutina", "generame una rutina",
+    ]
+    if not any(t in lower for t in triggers):
+        return None
+
+    # View if the user asks to see/show an existing routine.
+    view_words = ["ver", "mostrar", "muéstrame", "muestrame", "mi rutina", "cuál es mi", "cual es mi"]
+    action = "view" if any(w in lower for w in view_words) else "generate"
+
+    # Heuristic goal type detection.
+    goal_type = None
+    if "ganar músculo" in lower or "ganar musculo" in lower or "músculo" in lower or "musculo" in lower:
+        goal_type = "gain_muscle"
+    elif "adelgazar" in lower or "bajar de peso" in lower or "perder peso" in lower:
+        goal_type = "lose_weight"
+    elif "mantener" in lower:
+        goal_type = "maintain"
+
+    # Heuristic days-per-week detection ("N días").
+    days_per_week = None
+    days_match = re.search(r'(\d+)\s*d[ií]as', lower)
+    if days_match:
+        n = int(days_match.group(1))
+        if 1 <= n <= 7:
+            days_per_week = n
+
+    return {
+        "intent": "fitness",
+        "data": {
+            "action": action,
+            "goal_type": goal_type,
+            "equipment": None,
+            "days_per_week": days_per_week,
+        }
+    }
+
+
+def _detect_strength_keywords(text: str) -> dict | None:
+    """Detect a logged STRENGTH exercise with weight/sets/reps from free text.
+
+    Robust fallback for when the LLM misclassifies or fails. Handles phrases like:
+      - "con 55kg hice 3 series de deadlift"
+      - "hice 3 series de sentadilla con 80kg"
+      - "4x10 press banca 60kg"
+      - "3 series de crunch con 40 kg"
+    Returns a fake LLM ``activity`` response (category="strength") with
+    ``exercise_name`` and ``sets``=[{reps, weight_kg} x N], or ``None``.
+    """
+    import re
+
+    lower = text.lower().strip()
+
+    # Known exercises (es/en synonyms) -> canonical Spanish display name.
+    EXERCISES = {
+        "deadlift": "Peso muerto", "peso muerto": "Peso muerto",
+        "squat": "Sentadilla", "sentadilla": "Sentadilla", "sentadillas": "Sentadilla",
+        "bench": "Press banca", "press banca": "Press banca", "pressbanca": "Press banca",
+        "press de banca": "Press banca", "banca": "Press banca",
+        "crunch": "Crunch", "crunchs": "Crunch", "crunches": "Crunch", "abdominales": "Crunch",
+        "press militar": "Press militar", "overhead press": "Press militar", "ohp": "Press militar",
+        "remo": "Remo", "row": "Remo",
+        "curl": "Curl de biceps", "curl de biceps": "Curl de biceps", "curl de bíceps": "Curl de biceps",
+        "hip thrust": "Hip thrust", "peso muerto rumano": "Peso muerto rumano", "rdl": "Peso muerto rumano",
+        "dominadas": "Dominadas", "pull up": "Dominadas", "pull ups": "Dominadas", "pullup": "Dominadas",
+        "fondos": "Fondos", "dips": "Fondos",
+        "zancadas": "Zancadas", "lunges": "Zancadas",
+        "press inclinado": "Press inclinado", "peck deck": "Aperturas", "aperturas": "Aperturas",
+        "extension de triceps": "Extension de triceps", "triceps": "Extension de triceps",
+    }
+
+    # Must look like a logged set to avoid clashing with routine requests.
+    has_series = re.search(r"(\d+)\s*(?:series?|sets?|x)\b", lower) is not None
+    weight_match = re.search(r"(\d+(?:[.,]\d+)?)\s*kg", lower)
+    done_verb = re.search(r"\bhice\b|\blevant[ée]|\bhaciendo\b", lower) is not None
+
+    # Find which exercise is mentioned (prefer the longest match).
+    found_name = None
+    found_key_len = 0
+    for key, display in EXERCISES.items():
+        if re.search(r"\b" + re.escape(key) + r"\b", lower) and len(key) > found_key_len:
+            found_name = display
+            found_key_len = len(key)
+    if found_name is None:
+        return None
+
+    # Require at least a weight or an explicit "series/sets/x" count so we do not
+    # hijack messages like "quiero hacer sentadillas" (that is a goal, not a log).
+    if not (weight_match or has_series):
+        return None
+    # If the text is clearly a routine-generation request, let fitness handle it.
+    if re.search(r"rutina|gener[aá]|arma|pl[aá]n de (?:gym|entrenamiento)", lower):
+        return None
+
+    # Parse count of sets and reps.
+    sets_count = 1
+    m = re.search(r"(\d+)\s*(?:series?|sets?)\b", lower)
+    if m:
+        sets_count = max(1, min(20, int(m.group(1))))
+    reps = 10  # sensible default when not stated
+    # Patterns like "3x10" or "4 x 12".
+    mx = re.search(r"(\d+)\s*x\s*(\d+)", lower)
+    if mx:
+        sets_count = max(1, min(20, int(mx.group(1))))
+        reps = max(1, min(100, int(mx.group(2))))
+    else:
+        mr = re.search(r"(\d+)\s*(?:reps?|repeticiones?)\b", lower)
+        if mr:
+            reps = max(1, min(100, int(mr.group(1))))
+
+    weight = 0.0
+    if weight_match:
+        weight = float(weight_match.group(1).replace(",", "."))
+
+    sets = [{"reps": reps, "weight_kg": weight} for _ in range(sets_count)]
+
+    return {
+        "intent": "activity",
+        "data": {
+            "activity_type": "weights",
+            "category": "strength",
+            "duration_minutes": None,
+            "distance_km": None,
+            "detail": None,
+            "exercise_name": found_name,
+            "sets": sets,
+            "confidence": 0.9,
+        },
+    }
+
+
+def _detect_meal_keywords(text: str) -> dict | None:
+    """
+    Detect meal-plan intent from keywords.
+    Triggers on: "plan de comidas", "qué como", "menú", "dame el plan", and
+    food-inventory lists starting with "tengo ...". Returns a fake LLM meal
+    response dict or None.
+    """
+    import re
+
+    lower = text.lower().strip()
+
+    triggers = [
+        "plan de comidas", "plan de comida", "qué como", "que como",
+        "menú", "menu", "dame el plan",
+    ]
+    has_inventory = lower.startswith("tengo ")
+    if not any(t in lower for t in triggers) and not has_inventory:
+        return None
+
+    # View if the user asks to see/show an existing plan, unless the message is a
+    # build request (an explicit "arma/genera/..." instruction or a "tengo ..."
+    # inventory list), in which case it is a generation request.
+    build_words = [
+        "arma", "armar", "hazme", "haz", "genera", "genérame", "generame",
+        "dame", "prepara", "prepárame", "preparame", "crea", "créame", "creame",
+    ]
+    is_build = has_inventory or any(w in lower for w in build_words)
+    view_words = ["ver", "mostrar", "muéstrame", "muestrame", "mi plan de comidas", "mi plan"]
+    action = "view" if (any(w in lower for w in view_words) and not is_build) else "generate"
+
+    # Heuristic goal type detection.
+    goal_type = None
+    if "ganar músculo" in lower or "ganar musculo" in lower or "músculo" in lower or "musculo" in lower:
+        goal_type = "gain_muscle"
+    elif "adelgazar" in lower or "bajar de peso" in lower or "perder peso" in lower or "bajar peso" in lower:
+        goal_type = "lose_weight"
+    elif "mantener" in lower:
+        goal_type = "maintain"
+
+    # Parse a "tengo X, Y y Z" food list when present.
+    foods = None
+    tengo_match = re.search(r'tengo\s+(.+)', lower)
+    if tengo_match:
+        foods_text = tengo_match.group(1)
+        # Cut off any trailing instruction after the food list (e.g. ", arma mi plan").
+        foods_text = re.split(
+            r'\b(?:arma|armar|hazme|haz|genera|gener[aá]me|dame|prepara|prep[aá]rame|para)\b',
+            foods_text,
+            maxsplit=1,
+        )[0]
+        # Split on commas and the connector " y ".
+        parts = re.split(r'\s*,\s*|\s+y\s+', foods_text)
+        foods = [p.strip(" .,;:-") for p in parts if p.strip(" .,;:-")]
+        foods = foods or None
+
+    return {
+        "intent": "meal",
+        "data": {
+            "action": action,
+            "foods": foods,
+            "goal_type": goal_type,
+        }
+    }
+
+
+def _detect_challenge_keywords(text: str) -> dict | None:
+    """
+    Detect challenge/multi-goal intent from keywords.
+    Triggers when: "durante X días/meses" + multiple activities (comma/y separated).
+    """
+    import re
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    lower = text.lower().strip()
+
+    # Must contain a duration trigger
+    duration_days = None
+    duration_match = re.search(r'(\d+)\s*días', lower)
+    if duration_match:
+        duration_days = int(duration_match.group(1))
+    
+    months_match = re.search(r'(\d+)\s*mes(?:es)?', lower)
+    if months_match:
+        duration_days = int(months_match.group(1)) * 30
+
+    # Must contain "durante" or "por" or "quiero" with duration
+    triggers = ["durante", "por", "desafío", "desafio", "challenge"]
+    has_trigger = any(t in lower for t in triggers)
+    
+    if not duration_days and not has_trigger:
+        return None
+    
+    # Must have multiple activities (separated by comma or "y")
+    # Remove the duration/trigger part to get activities
+    activities_text = lower
+    activities_text = re.sub(r'durante\s+\d+\s*(días|meses?)', '', activities_text)
+    activities_text = re.sub(r'por\s+\d+\s*(días|meses?)', '', activities_text)
+    activities_text = re.sub(r'desaf[ií]o:?\s*', '', activities_text)
+    activities_text = re.sub(r'quiero\s*', '', activities_text)
+    activities_text = activities_text.strip(" .,;:-")
+
+    # Split by comma and "y"
+    parts = re.split(r'\s*[,]\s*|\s+y\s+', activities_text)
+    parts = [p.strip() for p in parts if p.strip() and len(p.strip()) > 1]
+
+    if len(parts) < 2:
+        return None  # Not a multi-goal, let LLM handle as single goal
+
+    # Build goals from parts
+    goals = []
+    for part in parts:
+        # Try to extract frequency
+        target_count = 1
+        period = "daily"
+        
+        freq_match = re.search(r'(\d+)\s*(?:veces?\s*(?:por|a la)\s*semana|x\s*semana)', part)
+        if freq_match:
+            target_count = int(freq_match.group(1))
+            period = "weekly"
+            part = re.sub(r'\d+\s*(?:veces?\s*(?:por|a la)\s*semana|x\s*semana)', '', part).strip()
+        elif "diario" in part or "todos los días" in part or "cada día" in part:
+            target_count = 1
+            period = "daily"
+            part = re.sub(r'(?:diario|todos los días|cada día)', '', part).strip()
+
+        # Clean activity name
+        activity = part.strip(" .,;:-")
+        if not activity:
+            continue
+
+        # Map common names
+        activity_map = {
+            "deporte": "gym", "gimnasio": "gym", "gym": "gym",
+            "correr": "running", "caminar": "walking", "nadar": "swimming",
+            "meditar": "meditation", "meditación": "meditation",
+            "leer": "reading", "estudiar": "study",
+            "cama": "cama", "mi cama": "cama", "hacer mi cama": "cama",
+            "yoga": "yoga", "bici": "cycling",
+        }
+        activity_type = activity_map.get(activity, activity)
+
+        goals.append({
+            "activity_type": activity_type,
+            "target_count": target_count,
+            "period": period,
+            "description": activity.capitalize(),
+        })
+
+    if len(goals) < 2:
+        return None
+
+    # Calculate ends_at
+    ends_at = None
+    if duration_days:
+        now = datetime.now(ZoneInfo("America/Santiago"))
+        end_date = now + timedelta(days=duration_days)
+        ends_at = end_date.strftime("%Y-%m-%d")
+
+    name = f"Desafío {duration_days} días" if duration_days else "Mi desafío"
+
+    return {
+        "intent": "challenge",
+        "data": {
+            "name": name,
+            "ends_at": ends_at,
+            "goals": goals,
+        }
+    }
+
+
+def _detect_life_keywords(text: str) -> dict | None:
+    """
+    Detect life/daily activities that the LLM might refuse to classify.
+    Also detects common sports activities as fallback when LLM fails.
+    Returns a fake LLM activity response or None.
+    """
+    import re
+    lower = text.lower().strip()
+    
+    # Sport patterns (fallback for when LLM fails)
+    sport_patterns = [
+        (r'corr[íi]|corriendo|troté', "running"),
+        (r'camin[ée]|caminando', "walking"),
+        (r'nad[ée]|nadando|natación', "swimming"),
+        (r'bici|ciclismo|pedale[ée]', "cycling"),
+        (r'gym|gimnasio', "gym"),
+        (r'yoga', "yoga"),
+        (r'medit[ée]|meditando|meditación', "meditation"),
+        (r'le[íi]|leyendo|lectura', "reading"),
+        (r'estudi[ée]|estudiando', "study"),
+    ]
+    
+    for pattern, activity_type in sport_patterns:
+        if re.search(pattern, lower):
+            # Extract distance
+            dist_match = re.search(r'(\d+(?:[.,]\d+)?)\s*(?:km|kilómetros)', lower)
+            distance = float(dist_match.group(1).replace(',', '.')) if dist_match else None
+            
+            # Extract duration
+            dur_match = re.search(r'(\d+)\s*(?:min|minutos|hrs?|horas?)', lower)
+            duration = None
+            if dur_match:
+                val = int(dur_match.group(1))
+                if 'hr' in lower or 'hora' in lower:
+                    duration = val * 60
+                else:
+                    duration = val
+            
+            category = "sport" if activity_type in ("running", "walking", "swimming", "cycling", "gym") else "habit"
+            
+            return {
+                "intent": "activity",
+                "data": {
+                    "activity_type": activity_type,
+                    "category": category,
+                    "duration_minutes": duration,
+                    "distance_km": distance,
+                    "detail": None,
+                    "exercise_name": None,
+                    "sets": None,
+                    "confidence": 0.85,
+                }
+            }
+    
+    # Life activity patterns
+    life_patterns = [
+        (["hice caca", "fui al baño", "hice del baño", "fui a cagar", "cagué", "hice popo", "fui al wc"], "baño"),
+        (["comí", "almorcé", "desayuné", "cené", "merendé", "comimos"], "comer"),
+        (["tomé agua", "bebí agua", "me hidraté", "vaso de agua"], "agua"),
+        (["dormí", "me dormí", "me acosté"], "dormir"),
+        (["vi una película", "vi una peli", "vi una serie", "vi tele", "vi netflix"], "entretenimiento"),
+        (["cociné", "hice comida", "preparé comida"], "cocinar"),
+        (["limpié", "hice aseo", "ordené", "aspiré", "lavé"], "limpieza"),
+        (["me duché", "me bañé"], "higiene"),
+        (["hice mi cama", "hice la cama", "tendí la cama", "tendí mi cama", "arreglé mi cama", "arreglé la cama"], "cama"),
+    ]
+    
+    for keywords, activity_type in life_patterns:
+        for kw in keywords:
+            if kw in lower:
+                detail = lower.replace(kw, "").strip(" .,;:-")
+                return {
+                    "intent": "activity",
+                    "data": {
+                        "activity_type": activity_type,
+                        "category": "life",
+                        "duration_minutes": None,
+                        "distance_km": None,
+                        "detail": detail if detail else None,
+                        "exercise_name": None,
+                        "sets": None,
+                        "confidence": 0.9,
+                    }
+                }
+    
+    return None
+
+
+def _detect_reminder_keywords(text: str) -> dict | None:
+    """
+    Detect reminder intent from keywords when LLM fails.
+    Returns a fake LLM response dict or None.
+    """
+    import re
+    lower = text.lower()
+
+    # Must contain a reminder trigger word
+    triggers = ["recuérdame", "recuerdame", "recordatorio", "acuérdame", "no olvides", "no te olvides"]
+    if not any(t in lower for t in triggers):
+        return None
+
+    # Try to extract time (HH:MM pattern)
+    time_match = re.search(r'(\d{1,2})[:\.](\d{2})', text)
+    schedule = None
+    if time_match:
+        h, m = int(time_match.group(1)), int(time_match.group(2))
+        if 0 <= h <= 23 and 0 <= m <= 59:
+            schedule = f"{h:02d}:{m:02d}"
+
+    # Try AM/PM
+    if not schedule:
+        am_pm = re.search(r'(\d{1,2})\s*(am|pm)', lower)
+        if am_pm:
+            h = int(am_pm.group(1))
+            if am_pm.group(2) == "pm" and h < 12:
+                h += 12
+            schedule = f"{h:02d}:00"
+
+    if not schedule:
+        schedule = "09:00"  # Default
+
+    # Try to extract date
+    schedule_date = None
+    schedule_days = None
+    frequency = "daily"
+    
+    # Resolve relative dates: "hoy", "mañana", "este miércoles", etc.
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    now = datetime.now(ZoneInfo("America/Santiago"))
+    today = now.date()
+    
+    DAY_MAP = {
+        "lunes": 0, "martes": 1, "miércoles": 2, "miercoles": 2,
+        "jueves": 3, "viernes": 4, "sábado": 5, "sabado": 5, "domingo": 6,
+    }
+
+    if "hoy" in lower:
+        schedule_date = today.isoformat()
+        frequency = "once"
+    elif "mañana" in lower or "manana" in lower:
+        schedule_date = (today + timedelta(days=1)).isoformat()
+        frequency = "once"
+    elif "pasado mañana" in lower or "pasado manana" in lower:
+        schedule_date = (today + timedelta(days=2)).isoformat()
+        frequency = "once"
+    else:
+        # Check for RECURRING day patterns: "los lunes", "todos los lunes", "cada lunes"
+        import re as _re
+        recurring_match = _re.search(r'(?:los|todos los|cada)\s+(lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bados?|domingos?)', lower)
+        if recurring_match:
+            matched_day = recurring_match.group(1)
+            # Normalize: remove trailing 's' only for days that end in 'os' (sábados, domingos)
+            if matched_day.endswith('os'):
+                matched_day = matched_day[:-1]  # "sábados" → "sábado"
+            day_num = DAY_MAP.get(matched_day)
+            if day_num is not None:
+                frequency = "specific_days"
+                schedule_days = str(day_num)
+        else:
+            # Check "este [día]" or "el [día]" → one-time
+            for day_name, day_num in DAY_MAP.items():
+                if day_name in lower:
+                    days_ahead = day_num - today.weekday()
+                    if days_ahead < 0:
+                        days_ahead += 7
+                    target_date = today + timedelta(days=days_ahead)
+                    schedule_date = target_date.isoformat()
+                    frequency = "once"
+                    break
+
+    # Match "DD de MES" for explicit dates
+    if not schedule_date:
+        months = {"enero": "01", "febrero": "02", "marzo": "03", "abril": "04",
+                  "mayo": "05", "junio": "06", "julio": "07", "agosto": "08",
+                  "septiembre": "09", "octubre": "10", "noviembre": "11", "diciembre": "12"}
+        
+        for month_name, month_num in months.items():
+            date_match = re.search(rf'(\d{{1,2}})\s+de\s+{month_name}', lower)
+            if date_match:
+                day = int(date_match.group(1))
+                schedule_date = f"{now.year}-{month_num}-{day:02d}"
+                frequency = "once"
+                break
+
+    # Extract message (remove trigger word, time, and date parts)
+    message = lower
+    for t in triggers:
+        message = message.replace(t, "")
+    # Remove time patterns
+    message = re.sub(r'\d{1,2}[:.]\d{2}', '', message)
+    message = re.sub(r'\d{1,2}\s*(am|pm)', '', message)
+    # Remove date patterns
+    message = re.sub(r'(?:los|todos los|cada|el)\s*(?:lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)s?', '', message)
+    message = re.sub(r'\d{1,2}\s+de\s+\w+', '', message)
+    message = re.sub(r'(hoy|mañana|manana|pasado mañana|este|esta)', '', message)
+    # Remove filler words
+    message = re.sub(r'\b(que|de|a las|tengo que|hay que|debo)\b', '', message)
+    message = message.strip(" .,;:-")
+    
+    if not message or len(message) < 2:
+        message = "recordatorio"
+
+    return {
+        "intent": "reminder",
+        "data": {
+            "action": "create",
+            "message": message,
+            "schedule": schedule,
+            "frequency": frequency,
+            "schedule_days": schedule_days,
+            "schedule_date": schedule_date,
+        }
+    }
+
+
+async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession) -> None:
+    from app.services.llm_service import interpret_message, parse_activity, parse_reminder, parse_goal
+    from app.services.calorie_service import calorie_service
+    from app.models.goal import Goal
+
+    # Quick keyword detection for reminders (LLM sometimes misclassifies these)
+    forced_reminder = _detect_reminder_keywords(text)
+    
+    # Quick keyword detection for challenges/multi-goal
+    forced_challenge = _detect_challenge_keywords(text)
+    
+    # Quick keyword detection for single goals
+    forced_goal = _detect_goal_keywords(text)
+    
+    # Quick keyword detection for life activities the LLM might reject
+    forced_activity = _detect_life_keywords(text)
+
+    # Quick keyword detection for logged strength exercises (weight/sets/reps)
+    forced_strength = _detect_strength_keywords(text)
+
+    # Quick keyword detection for fitness/workout routines
+    forced_fitness = _detect_fitness_keywords(text)
+
+    # Quick keyword detection for meal plans
+    forced_meal = _detect_meal_keywords(text)
+
+    response = await interpret_message(text)
+    if not response:
+        if forced_reminder:
+            response = forced_reminder
+        elif forced_challenge:
+            response = forced_challenge
+        elif forced_goal:
+            response = forced_goal
+        elif forced_strength:
+            response = forced_strength
+        elif forced_activity:
+            response = forced_activity
+        elif forced_fitness:
+            response = forced_fitness
+        elif forced_meal:
+            response = forced_meal
+        else:
+            await _send_help(chat_id, user)
+            return
+
+    intent = response.get("intent", "chat")
+
+    # Override LLM classification if we detected reminder keywords
+    if intent != "reminder" and forced_reminder:
+        intent = "reminder"
+        response = forced_reminder
+    # Override for challenges
+    elif intent != "challenge" and forced_challenge:
+        intent = "challenge"
+        response = forced_challenge
+    # Override for goals
+    elif intent not in ("goal", "challenge") and forced_goal:
+        intent = "goal"
+        response = forced_goal
+    # Override: a detected strength log (weight/sets/reps) beats chat/fitness
+    elif intent in ("chat", "fitness") and forced_strength:
+        intent = "activity"
+        response = forced_strength
+    # Override if LLM rejected a life activity we detected
+    elif intent == "chat" and forced_activity:
+        intent = "activity"
+        response = forced_activity
+    # Override for fitness routines (lowest priority; only if not already handled)
+    elif intent not in ("reminder", "challenge", "goal", "activity") and forced_fitness:
+        intent = "fitness"
+        response = forced_fitness
+    # Override for meal plans (lowest priority; only if not already handled)
+    elif intent not in ("reminder", "challenge", "goal", "activity", "fitness") and forced_meal:
+        intent = "meal"
+        response = forced_meal
+
+    if intent == "activity":
+        activity_data = parse_activity(response)
+        if not activity_data:
+            await _send_help(chat_id, user)
+            return
+
+        calories = 0
+        if activity_data.category in ("sport", "strength") and user.show_calories:
+            calories = calorie_service.estimate(
+                activity_type=activity_data.activity_type,
+                duration_minutes=activity_data.duration_minutes,
+                distance_km=activity_data.distance_km,
+            )
+
+        import json as json_mod
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+
+        # Use user's timezone for the timestamp
+        try:
+            user_tz = ZoneInfo(user.timezone or "America/Santiago")
+        except Exception:
+            user_tz = ZoneInfo("America/Santiago")
+        
+        # Resolve when from the original text (keyword detection)
+        user_now = datetime.now(user_tz).replace(tzinfo=None)
+        when_detected = _detect_when_keywords(text)
+        activity_time = _resolve_when(when_detected, user_now)
+
+        normalized_activity_type = normalize_activity_type(activity_data.activity_type)
+        activity = Activity(
+            user_id=user.id,
+            activity_type=normalized_activity_type,
+            exercise_name=activity_data.exercise_name,
+            duration_minutes=activity_data.duration_minutes,
+            distance_km=activity_data.distance_km,
+            calories=calories,
+            sets_data=json_mod.dumps(activity_data.sets) if activity_data.sets else None,
+            timestamp=activity_time,
+        )
+        db.add(activity)
+        await db.flush()
+
+        icon = {"running": "🏃", "walking": "🚶", "cycling": "🚴", "gym": "🏋️",
+                "swimming": "🏊", "yoga": "🧘", "weights": "💪", "strength": "💪",
+                "crossfit": "💪", "meditation": "🧘", "reading": "📚", "study": "📖"
+        }.get(activity_data.activity_type.lower(), "⚡")
+
+        if activity_data.category == "sport":
+            name = activity_data.activity_type.capitalize()
+            parts = []
+            if activity_data.duration_minutes: parts.append(f"{activity_data.duration_minutes} min")
+            if activity_data.distance_km: parts.append(f"{activity_data.distance_km} km")
+            msg = f"✅ {icon} *{name}*"
+            if parts: msg += f" ({' · '.join(parts)})"
+            if calories > 0:
+                msg += f"\n🔥 {calories} cal"
+
+        elif activity_data.category == "strength":
+            name = activity_data.exercise_name or activity_data.activity_type.capitalize()
+            msg = f"✅ 💪 *{name}*"
+            if activity_data.sets:
+                sets_str = ", ".join(f"{s['reps']}×{s['weight_kg']}kg" for s in activity_data.sets)
+                msg += f"\n📋 {len(activity_data.sets)} series: {sets_str}"
+                total_vol = sum(s.get("reps", 0) * s.get("weight_kg", 0) for s in activity_data.sets)
+                if total_vol > 0:
+                    msg += f"\n📊 Volumen: {total_vol:,} kg"
+            elif activity_data.detail:
+                msg += f"\n📋 {activity_data.detail}"
+
+        elif activity_data.category == "life":
+            name = activity_data.activity_type.capitalize()
+            life_icons = {"comer": "🍽", "baño": "🚽", "agua": "💧", "dormir": "😴",
+                         "película": "🎬", "cocinar": "👨‍🍳", "limpiar": "🧹", "compras": "🛒"}
+            icon = life_icons.get(activity_data.activity_type.lower(), "📝")
+            msg = f"✅ {icon} *{name}*"
+            if activity_data.detail:
+                msg += f" — {activity_data.detail}"
+            if activity_data.duration_minutes:
+                msg += f" ({activity_data.duration_minutes} min)"
+            msg += "\n📋 Registrado"
+
+        else:
+            name = activity_data.activity_type.capitalize()
+            msg = f"✅ {icon} *{name}*"
+            if activity_data.duration_minutes: msg += f" ({activity_data.duration_minutes} min)"
+            msg += "\n📊 ¡Sumado a tu racha!"
+
+        # Show when it was registered if not "now"
+        if when_detected and when_detected != "now":
+            msg += f"\n🕐 Registrado: {activity_time.strftime('%d/%m %H:%M')}"
+
+        # Check goal progress
+        goal_msg = await _check_goal_progress(user.id, normalized_activity_type, db)
+        if goal_msg:
+            msg += f"\n\n{goal_msg}"
+
+        await _send(chat_id, msg)
+
+    elif intent == "reminder":
+        reminder_data = parse_reminder(response)
+        if not reminder_data:
+            await _send(chat_id, "No entendí. Intenta: \"recuérdame meditar a las 8:00\"")
+            return
+
+        if reminder_data.action == "create":
+            schedule = reminder_data.schedule or "09:00"
+            msg_text = reminder_data.message or "actividad"
+
+            # Prevent duplicates: check if same reminder already exists
+            existing = await db.execute(
+                select(Reminder).where(
+                    Reminder.user_id == user.id,
+                    Reminder.message == msg_text,
+                    Reminder.schedule == schedule,
+                    Reminder.active == True,
+                )
+            )
+            if existing.scalar_one_or_none():
+                await _send(chat_id, f"⏰ Ya tienes ese recordatorio: *{msg_text}* a las {schedule}")
+                return
+
+            r = Reminder(
+                user_id=user.id,
+                schedule=schedule,
+                frequency=reminder_data.frequency,
+                message=msg_text,
+                schedule_days=reminder_data.schedule_days,
+                schedule_date=reminder_data.schedule_date,
+                active=True,
+            )
+            db.add(r)
+            await db.flush()
+
+            freq_text = _format_frequency(r)
+            await _send(chat_id, f"⏰ Recordatorio creado!\n📌 *{r.message}*\n🕐 {schedule} — {freq_text}")
+
+        elif reminder_data.action == "list":
+            res = await db.execute(select(Reminder).where(Reminder.user_id == user.id, Reminder.active == True))
+            reminders = res.scalars().all()
+            if not reminders:
+                await _send(chat_id, "No tienes recordatorios activos.")
+            else:
+                from app.services.reminder_format import format_reminder_from_model
+                lines = ["⏰ *Tus recordatorios:*\n"]
+                for r in reminders:
+                    lines.append(f"• {format_reminder_from_model(r)}")
+                await _send(chat_id, "\n".join(lines))
+        elif reminder_data.action in ("delete", "pause"):
+            res = await db.execute(select(Reminder).where(Reminder.user_id == user.id, Reminder.active == True))
+            reminders = res.scalars().all()
+            target = next((r for r in reminders if reminder_data.message and reminder_data.message.lower() in r.message.lower()), None)
+            if not target and reminders:
+                target = reminders[0]
+            if target:
+                target.active = False
+                await _send(chat_id, f"✅ Recordatorio *{target.message}* desactivado.")
+            else:
+                await _send(chat_id, "No encontré ese recordatorio.")
+
+    elif intent == "timezone":
+        tz = response.get("data", {}).get("timezone", "")
+        if tz:
+            import zoneinfo
+            try:
+                zoneinfo.ZoneInfo(tz)
+                await db.execute(sql_update(User).where(User.id == user.id).values(timezone=tz))
+                await _send(chat_id, f"✅ Zona horaria: *{tz}*")
+            except Exception:
+                await _send(chat_id, "❌ Zona horaria no válida.")
+        else:
+            await _send(chat_id, f"🌐 Tu zona: *{user.timezone}*")
+
+    elif intent == "goal":
+        await _handle_goal(chat_id, user, response, db)
+
+    elif intent == "challenge":
+        await _handle_challenge(chat_id, user, response, db)
+
+    elif intent == "fitness":
+        await _handle_fitness(chat_id, user, response, db)
+
+    elif intent == "meal":
+        await _handle_meal(chat_id, user, response, db)
+
+    else:
+        await _send_help(chat_id, user)
+
+
+def _format_frequency(r) -> str:
+    """Format reminder cadence in human-readable Spanish.
+
+    Delegates to the shared ``reminder_format`` helper so the creation
+    confirmation and the "Tus recordatorios" list stay consistent.
+    """
+    from app.services.reminder_format import format_reminder_schedule
+
+    return format_reminder_schedule(
+        r.frequency,
+        schedule=getattr(r, "schedule", None),
+        schedule_days=getattr(r, "schedule_days", None),
+        schedule_date=getattr(r, "schedule_date", None),
+    )
+
+
+async def _check_goal_progress(user_id: int, activity_type: str, db: AsyncSession) -> str | None:
+    """Check if user has a goal for this activity type and return progress message.
+
+    Thin wrapper over the shared ``goal_progress.check_goal_progress`` so the
+    webhook, polling bot, routes, and scheduler all share one implementation.
+    """
+    from app.services.goal_progress import check_goal_progress
+
+    return await check_goal_progress(db, user_id, activity_type)
+
+
+def _format_workout_plan(plan) -> str:
+    """Format a WorkoutPlan into a Spanish, human-readable message."""
+    lines = ["🏋️ *Tu rutina de entrenamiento:*\n"]
+    for day in plan.structure_list():
+        day_name = day.get("day", "Día")
+        lines.append(f"\n📅 *{day_name}*")
+        for ex in day.get("exercises", []):
+            name = ex.get("name", "Ejercicio")
+            sets = ex.get("sets")
+            reps = ex.get("reps")
+            duration = ex.get("duration_seconds")
+            rest = ex.get("rest_seconds")
+            if sets is not None and reps is not None:
+                detail = f"{sets}×{reps}"
+            elif duration is not None:
+                detail = f"{duration}s"
+            else:
+                detail = ""
+            line = f"  • {name}"
+            if detail:
+                line += f" — {detail}"
+            if rest is not None:
+                line += f" (descanso {rest}s)"
+            lines.append(line)
+    return "\n".join(lines)
+
+
+async def _handle_fitness(chat_id: int, user: User, response: dict, db: AsyncSession) -> None:
+    """Handle fitness intent: generate a new workout plan or view the active one."""
+    from app.services import fitness_service
+
+    data = response.get("data", {}) or {}
+    action = data.get("action", "generate")
+
+    overrides: dict = {}
+    if data.get("goal_type") is not None:
+        overrides["goal_type"] = data.get("goal_type")
+    if data.get("equipment") is not None:
+        overrides["equipment"] = data.get("equipment")
+    if data.get("days_per_week") is not None:
+        overrides["days_per_week"] = data.get("days_per_week")
+
+    if action == "view":
+        plan = await fitness_service.get_active_plan(db, user.id)
+        if plan is not None:
+            await _send(chat_id, _format_workout_plan(plan))
+        else:
+            await _send(
+                chat_id,
+                "No tienes una rutina activa. Escríbeme por ejemplo: "
+                "\"genérame una rutina para ganar músculo 4 días\".",
+            )
+        return
+
+    # action == "generate"
+    try:
+        plan = await fitness_service.generate_workout_plan(
+            db, user.id, overrides or None
+        )
+    except fitness_service.GoalRequiredError as e:
+        await _send(chat_id, str(e) + " Puedes hacerlo en la web.")
+        return
+    except fitness_service.LLMError:
+        await _send(
+            chat_id,
+            "No pude generar tu rutina ahora. Intenta de nuevo en un momento.",
+        )
+        return
+    except fitness_service.EquipmentError as e:
+        await _send(chat_id, str(e))
+        return
+
+    msg = _format_workout_plan(plan)
+    msg += f"\n\n_{fitness_service.MEDICAL_DISCLAIMER}_"
+    await _send(chat_id, msg)
+
+
+def _format_meal_plan(plan) -> str:
+    """Format a MealPlan into a Spanish, compact 7-day message."""
+    lines = ["🍽️ *Tu plan de comidas:*\n"]
+    for day in plan.structure_list():
+        day_name = day.get("day", "Día")
+        lines.append(f"\n📅 *{day_name}*")
+        for meal in day.get("meals", []):
+            meal_type = meal.get("type", "comida")
+            items = meal.get("items", [])
+            item_strs = []
+            for item in items:
+                food_name = item.get("food_name", "alimento")
+                grams = item.get("grams")
+                if grams is not None:
+                    item_strs.append(f"{food_name} ({grams:g}g)")
+                else:
+                    item_strs.append(f"{food_name}")
+            line = f"  • {meal_type.capitalize()}: " + ", ".join(item_strs)
+            lines.append(line)
+        totals = day.get("totals", {}) or {}
+        day_kcal = totals.get("kcal")
+        if day_kcal is not None:
+            lines.append(f"  🔥 {day_kcal:g} kcal")
+    return "\n".join(lines)
+
+
+async def _handle_meal(chat_id: int, user: User, response: dict, db: AsyncSession) -> None:
+    """Handle meal intent: generate a new meal plan or view the active one."""
+    from app.services import meal_service
+
+    data = response.get("data", {}) or {}
+    action = data.get("action", "generate")
+    foods = data.get("foods") or []
+    goal_type = data.get("goal_type")
+
+    if action == "view":
+        plan = await meal_service.get_active_plan(db, user.id)
+        if plan is not None:
+            await _send(chat_id, _format_meal_plan(plan))
+        else:
+            await _send(
+                chat_id,
+                "No tienes un plan de comidas activo. Escríbeme por ejemplo: "
+                "\"tengo pollo, arroz y huevos, arma mi plan\".",
+            )
+        return
+
+    # action == "generate"
+    # 1. Add each provided food to the user's inventory. Unknown foods (not in the
+    #    catalog) raise ValidationError because new_food_fields is None; skip them.
+    added: list[str] = []
+    skipped: list[str] = []
+    for food_name in foods:
+        try:
+            await meal_service.add_inventory(
+                db, user.id, food_name, quantity_grams=None, new_food_fields=None
+            )
+            added.append(food_name)
+        except meal_service.ValidationError:
+            skipped.append(food_name)
+
+    # 2. If a goal_type is provided and the user has no targets yet, try to derive.
+    if goal_type is not None:
+        existing = await meal_service.get_targets(db, user.id)
+        if existing is None:
+            try:
+                await meal_service.derive_targets(db, user.id)
+            except meal_service.GoalRequiredError:
+                # Surface the guidance below when generation fails.
+                pass
+
+    # 3. Generate the plan.
+    try:
+        plan = await meal_service.generate_meal_plan(db, user.id)
+    except meal_service.GoalRequiredError as e:
+        await _send(chat_id, str(e) + " Puedes hacerlo en la web.")
+        return
+    except meal_service.ValidationError as e:
+        await _send(chat_id, str(e))
+        return
+    except meal_service.LLMError:
+        await _send(
+            chat_id,
+            "No pude generar tu plan de comidas ahora. Intenta de nuevo en un momento.",
+        )
+        return
+    except (meal_service.ToleranceError, meal_service.DietaryError) as e:
+        await _send(chat_id, str(e) + " Intenta de nuevo.")
+        return
+
+    # 4. Success: format the plan and append the disclaimer.
+    msg = _format_meal_plan(plan)
+    if skipped:
+        note = (
+            "Nota: no pude agregar al inventario: "
+            + ", ".join(skipped)
+            + " (no están en el catálogo; agrégalos en la web).\n\n"
+        )
+        msg = note + msg
+    msg += f"\n\n_{meal_service.MEAL_DISCLAIMER}_"
+    await _send(chat_id, msg)
+
+
+async def _handle_challenge(chat_id: int, user: User, response: dict, db: AsyncSession) -> None:
+    """Create a challenge with multiple goals."""
+    from app.models.challenge import Challenge
+    from app.models.goal import Goal
+
+    data = response.get("data", {})
+    name = data.get("name", "Mi desafío")
+    ends_at = data.get("ends_at")
+    goals_data = data.get("goals", [])
+
+    if not goals_data:
+        await _send(chat_id, "No entendí las actividades del desafío. Intenta: \"75 días de deporte, meditar y leer\"")
+        return
+
+    # Create challenge
+    challenge = Challenge(
+        user_id=user.id,
+        name=name,
+        ends_at=ends_at,
+        active=True,
+    )
+    db.add(challenge)
+    await db.flush()
+
+    # Create goals linked to this challenge, plus a daily reminder per goal linked
+    # to the challenge so they can be auto-deactivated when the challenge ends.
+    from app.models.reminder import Reminder
+
+    goal_lines = []
+    reminder_count = 0
+    for g in goals_data:
+        goal = Goal(
+            user_id=user.id,
+            challenge_id=challenge.id,
+            activity_type=normalize_activity_type(g.get("activity_type", "actividad")),
+            description=g.get("description", g.get("activity_type", "")),
+            target_count=g.get("target_count", 1),
+            period=g.get("period", "daily"),
+            ends_at=ends_at,
+            active=True,
+        )
+        db.add(goal)
+        freq = {"daily": "diario", "weekly": "semanal", "monthly": "mensual"}.get(goal.period, goal.period)
+        goal_lines.append(f"  • {goal.description} ({goal.target_count}x {freq})")
+
+        # Linked daily reminder at 20:00 (user tz). Auto-off when the challenge closes.
+        reminder = Reminder(
+            user_id=user.id,
+            schedule="20:00",
+            frequency="daily",
+            message=f"{challenge.name}: {goal.description}",
+            active=True,
+            challenge_id=challenge.id,
+        )
+        db.add(reminder)
+        reminder_count += 1
+
+    await db.flush()
+
+    ends_text = f"\n📅 Hasta: {ends_at}" if ends_at else "\n♾️ Sin fecha límite"
+    goals_list = "\n".join(goal_lines)
+    reminder_note = (
+        f"\n\n🔔 Creé {reminder_count} recordatorio(s) diario(s) a las 20:00 para este desafío "
+        f"(se apagan solos cuando termine)."
+        if reminder_count else ""
+    )
+
+    await _send(chat_id,
+        f"🏆 *Desafío creado: {name}*{ends_text}\n\n"
+        f"📋 Metas incluidas:\n{goals_list}{reminder_note}\n\n"
+        f"_Registra tus actividades y verás el progreso de cada meta_"
+    )
+
+
+async def _handle_goal(chat_id: int, user: User, response: dict, db: AsyncSession) -> None:
+    """Handle goal create/list/delete."""
+    from app.services.llm_service import parse_goal
+    from app.models.goal import Goal
+
+    goal_data = parse_goal(response)
+    if not goal_data:
+        await _send(chat_id, "No entendí tu meta. Intenta: \"quiero correr 3 veces por semana\"")
+        return
+
+    if goal_data.action == "create":
+        if not goal_data.activity_type:
+            await _send(chat_id, "¿Qué actividad quieres como meta? Ej: \"meta: meditar todos los días\"")
+            return
+
+        goal = Goal(
+            user_id=user.id,
+            activity_type=normalize_activity_type(goal_data.activity_type),
+            description=goal_data.description or f"{goal_data.activity_type} {goal_data.target_count}x/{goal_data.period}",
+            target_count=goal_data.target_count,
+            period=goal_data.period,
+            ends_at=goal_data.ends_at,
+            active=True,
+        )
+        db.add(goal)
+        await db.flush()
+
+        period_text = {"daily": "al día", "weekly": "por semana", "monthly": "al mes"}.get(goal_data.period, goal_data.period)
+        duration_text = ""
+        if goal_data.ends_at:
+            duration_text = f"\n📅 Hasta: {goal_data.ends_at}"
+        else:
+            duration_text = "\n♾️ Sin fecha límite"
+
+        await _send(chat_id,
+            f"🎯 Meta creada!\n\n"
+            f"📌 *{goal_data.description or goal_data.activity_type}*\n"
+            f"🏆 {goal_data.target_count} veces {period_text}{duration_text}\n\n"
+            f"_Te mostraré tu progreso cada vez que registres esta actividad_"
+        )
+
+    elif goal_data.action == "list":
+        result = await db.execute(
+            select(Goal).where(Goal.user_id == user.id, Goal.active == True)
+        )
+        goals = result.scalars().all()
+
+        if not goals:
+            await _send(chat_id, "No tienes metas activas. Crea una con: \"quiero correr 3 veces por semana\"")
+            return
+
+        lines = ["🎯 *Tus metas:*\n"]
+        for g in goals:
+            # Calculate progress
+            progress = await _get_goal_progress(g, db)
+            bar = _progress_bar(progress, g.target_count)
+            period_text = {"daily": "hoy", "weekly": "esta semana", "monthly": "este mes"}.get(g.period, g.period)
+            status = "✅" if progress >= g.target_count else "🔄"
+            lines.append(f"{status} {g.description}\n   {bar} {progress}/{g.target_count} {period_text}")
+
+        await _send(chat_id, "\n".join(lines))
+
+    elif goal_data.action == "delete":
+        result = await db.execute(
+            select(Goal).where(Goal.user_id == user.id, Goal.active == True)
+        )
+        goals = result.scalars().all()
+        target = None
+        if goal_data.activity_type:
+            for g in goals:
+                if goal_data.activity_type.lower() in g.activity_type.lower():
+                    target = g
+                    break
+        if target:
+            target.active = False
+            await _send(chat_id, f"✅ Meta *{target.description}* eliminada.")
+        else:
+            await _send(chat_id, "No encontré esa meta.")
+
+
+async def _get_goal_progress(goal, db: AsyncSession) -> int:
+    """Count activities matching this goal in the current period (shared helper)."""
+    from app.services.goal_progress import goal_progress_count
+
+    return await goal_progress_count(db, goal.user_id, goal.activity_type, goal.period)
+
+
+def _progress_bar(current: int, target: int) -> str:
+    """Generate a text progress bar (shared helper)."""
+    from app.services.goal_progress import progress_bar
+
+    return progress_bar(current, target)
+
+
+async def _send_help(chat_id: int, user: User) -> None:
+    name = user.email.split("@")[0]
+    await _send(chat_id,
+        f"Lo siento {name}, no entiendo 🤔\n\n"
+        "Puedo:\n"
+        "🏃 *Deportes*: \"Corrí 5km\"\n"
+        "💪 *Fuerza*: \"Press banca 4x80kg\"\n"
+        "📚 *Hábitos*: \"Leí 30 min\"\n"
+        "🎯 *Metas*: \"Quiero correr 3 veces por semana\"\n"
+        "⏰ *Recordatorios*: \"Recuérdame meditar a las 8:00\"\n"
+        "📋 *Ver metas*: \"Mis metas\"\n\n"
+        "_Dime qué hiciste y lo registro_ ✍️"
+    )

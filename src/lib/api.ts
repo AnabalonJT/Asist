@@ -1,0 +1,557 @@
+import axios from 'axios'
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL ?? '/api',
+  headers: { 'Content-Type': 'application/json' },
+})
+
+// Attach JWT on every request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+// On 401 → clear the session and redirect to login — but NOT for the login/
+// register calls themselves, where a 401 just means wrong credentials and the
+// form should show the error while keeping the typed email/password.
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    const url: string = err.config?.url ?? ''
+    const isAuthAttempt = url.includes('/auth/login') || url.includes('/auth/register')
+    if (err.response?.status === 401 && !isAuthAttempt) {
+      localStorage.removeItem('token')
+      window.location.href = '/login'
+    }
+    return Promise.reject(err)
+  }
+)
+
+export default api
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+export interface UserMe {
+  id: number
+  email: string
+  is_admin: boolean
+  telegram_linked: boolean
+}
+
+export interface TokenResponse {
+  access_token: string
+  token_type: string
+}
+
+export interface GenericMessageResponse {
+  message: string
+}
+
+export const authApi = {
+  register: (email: string, password: string) =>
+    api.post<TokenResponse>('/auth/register', {
+      email,
+      password,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    }),
+
+  login: (email: string, password: string) =>
+    api.post<TokenResponse>('/auth/login', { email, password }),
+
+  me: () => api.get<UserMe>('/auth/me'),
+
+  linkingToken: () =>
+    api.post<{ token: string; bot_url: string; expires_at: string }>('/auth/linking-token'),
+
+  forgotPassword: (email: string) =>
+    api.post<GenericMessageResponse>('/auth/forgot-password', { email }),
+
+  resetPassword: (email: string, code: string, new_password: string) =>
+    api.post<GenericMessageResponse>('/auth/reset-password', { email, code, new_password }),
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+export interface ActivitySet {
+  reps: number | null
+  weight_kg: number | null
+}
+
+export interface Activity {
+  id: number
+  activity_type: string
+  exercise_name?: string | null
+  duration_minutes: number | null
+  distance_km: number | null
+  calories: number
+  sets?: ActivitySet[]
+  total_volume?: number
+  timestamp: string
+}
+
+export interface ActivityBreakdown {
+  activity_type: string
+  count: number
+  total_minutes: number
+  total_calories: number
+}
+
+export interface WeekComparison {
+  this_week: number
+  last_week: number
+  change_pct: number
+}
+
+export interface DashboardStats {
+  total_activities: number
+  total_calories: number
+  total_minutes: number
+  total_distance_km: number
+  current_streak: number
+  telegram_linked: boolean
+  timezone: string
+  recent_activities: Activity[]
+  breakdown: ActivityBreakdown[]
+  week_comparison: WeekComparison
+}
+
+export const dashboardApi = {
+  stats: () => api.get<DashboardStats>('/dashboard/stats'),
+}
+
+// ── Reminders ─────────────────────────────────────────────────────────────────
+export interface ReminderItem {
+  id: number
+  schedule: string
+  frequency: string
+  message: string
+  active: boolean
+  schedule_days: string | null
+  schedule_date: string | null
+}
+
+export const remindersApi = {
+  list: () => api.get<ReminderItem[]>('/reminders'),
+  delete: (id: number) => api.delete(`/reminders/${id}`),
+  toggle: (id: number, active: boolean) => api.put(`/reminders/${id}`, { active }),
+}
+
+// ── Goals ─────────────────────────────────────────────────────────────────────
+export interface GoalItem {
+  id: number
+  activity_type: string
+  description: string
+  target_count: number
+  period: string
+  active: boolean
+  current_progress: number
+  ends_at: string | null
+}
+
+export const goalsApi = {
+  list: () => api.get<GoalItem[]>('/goals'),
+  delete: (id: number) => api.delete(`/goals/${id}`),
+}
+
+// ── Challenges ────────────────────────────────────────────────────────────────
+export interface ChallengeGoal {
+  id: number
+  activity_type: string
+  description: string
+  target_count: number
+  period: string
+  current_progress: number
+  completed: boolean
+}
+
+export interface ChallengeItem {
+  id: number
+  name: string
+  ends_at: string | null
+  active: boolean
+  all_completed: boolean
+  goals: ChallengeGoal[]
+}
+
+export const challengesApi = {
+  list: () => api.get<ChallengeItem[]>('/challenges'),
+  delete: (id: number) => api.delete(`/challenges/${id}`),
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+export interface UserSettings {
+  show_calories: boolean
+  timezone: string
+}
+
+export const settingsApi = {
+  get: () => api.get<UserSettings>('/settings'),
+  update: (data: Partial<UserSettings>) => api.put<UserSettings>('/settings', data),
+}
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+export interface AdminOverview {
+  total_users: number
+  telegram_linked_users: number
+  total_activities: number
+  total_goals: number
+  total_reminders: number
+  total_challenges: number
+  active_users_7d: number
+  active_users_30d: number
+}
+
+export interface AdminUserSummary {
+  id: number
+  email: string
+  telegram_linked: boolean
+  created_at: string
+  activity_count: number
+  goal_count: number
+  reminder_count: number
+  challenge_count: number
+}
+
+export interface AdminUserDetail extends AdminUserSummary {
+  activities_7d: number
+  activities_30d: number
+  last_activity_at: string | null
+}
+
+export const adminApi = {
+  overview: () => api.get<AdminOverview>('/admin/overview'),
+  users: () => api.get<AdminUserSummary[]>('/admin/users'),
+  userDetail: (id: number) => api.get<AdminUserDetail>(`/admin/users/${id}`),
+}
+
+// ── Fitness ───────────────────────────────────────────────────────────────────
+export interface FitnessProfile {
+  weight_kg: number
+  height_cm: number
+  age: number
+  sex: string | null
+  level: string
+  equipment: string[]
+  days_per_week: number
+  minutes_per_session: number
+  goal_type: string | null
+  target_weight_kg: number | null
+  target_date: string | null
+  performance_target: string | null
+}
+
+export interface TargetRate {
+  rate_kg_per_week: number
+  daily_kcal_delta: number
+  direction: string
+  warning: boolean
+  warning_message: string | null
+  disclaimer: string
+}
+
+export interface WorkoutExercise {
+  name: string
+  sets: number | null
+  reps: number | null
+  duration_seconds: number | null
+  rest_seconds: number
+  equipment: string
+}
+
+export interface WorkoutDay {
+  day: string
+  exercises: WorkoutExercise[]
+}
+
+export interface WorkoutPlan {
+  id: number
+  goal_type: string
+  structure: WorkoutDay[]
+  disclaimer: string
+}
+
+export interface WeightEntry {
+  id: number
+  weight_kg: number
+  entry_date: string
+}
+
+export interface Progress {
+  series: { date: string; weight_kg: number }[]
+  target_weight_kg: number | null
+}
+
+export interface Adherence {
+  available: boolean
+  completed?: number
+  planned?: number
+  ratio?: number
+  message?: string
+}
+
+export interface GoalResult {
+  goal_type: string
+  target_weight_kg: number | null
+  target_date: string | null
+  performance_target: string | null
+  target_rate: TargetRate | null
+  disclaimer: string
+}
+
+export const fitnessApi = {
+  getProfile: () => api.get<FitnessProfile>('/fitness/profile'),
+  putProfile: (d: Partial<FitnessProfile>) => api.put<FitnessProfile>('/fitness/profile', d),
+  putGoal: (d: object) => api.put<GoalResult>('/fitness/goal', d),
+  postWeight: (d: { weight_kg: number; entry_date: string }) =>
+    api.post<WeightEntry>('/fitness/weight', d),
+  getWeight: () => api.get<WeightEntry[]>('/fitness/weight'),
+  generatePlan: () => api.post<WorkoutPlan>('/fitness/plan/generate'),
+  getPlan: () => api.get<WorkoutPlan | { message: string }>('/fitness/plan'),
+  getProgress: () => api.get<Progress>('/fitness/progress'),
+  getAdherence: () => api.get<Adherence>('/fitness/adherence'),
+}
+
+// ── Meals ─────────────────────────────────────────────────────────────────────
+export interface Food {
+  id: number
+  name: string
+  brand: string | null
+  kcal: number
+  protein: number
+  fat: number
+  carbs: number
+  fiber: number | null
+  is_meat: boolean
+  is_animal: boolean
+  has_gluten: boolean
+}
+
+export interface FoodInput {
+  name: string
+  brand?: string | null
+  kcal: number
+  protein: number
+  fat: number
+  carbs: number
+  fiber?: number | null
+  is_meat?: boolean
+  is_animal?: boolean
+  has_gluten?: boolean
+  barcode?: string | null
+}
+
+export interface FoodCandidate {
+  name: string
+  barcode?: string | null
+  kcal?: number | null
+  protein?: number | null
+  fat?: number | null
+  carbs?: number | null
+  fiber?: number | null
+  brand?: string | null
+  image_url?: string | null
+  source: string   // "local" | "off"
+}
+
+export interface SearchResult {
+  kind: 'catalog' | 'inventory' | 'recipe' | 'off'
+  id?: number | null
+  name: string
+  brand?: string | null
+  kcal?: number | null
+  protein?: number | null
+  fat?: number | null
+  carbs?: number | null
+  fiber?: number | null
+  barcode?: string | null
+  image_url?: string | null
+}
+
+export interface RecipeIngredient {
+  food_id: number
+  food_name: string
+  grams: number
+}
+
+export interface RecipeNutrition {
+  kcal: number
+  protein: number
+  fat: number
+  carbs: number
+  fiber: number | null
+}
+
+export interface Recipe {
+  id: number
+  name: string
+  ingredients: RecipeIngredient[]
+  nutrition: RecipeNutrition
+}
+
+// Input for creating a recipe (ingredients reference a catalog food by id + grams).
+export interface RecipeInput {
+  name: string
+  ingredients: { food_id: number; grams: number }[]
+}
+
+export interface InventoryItem {
+  food_id: number
+  food_name: string
+  grams: number | null
+}
+
+export interface Dietary {
+  vegetarian: boolean
+  vegan: boolean
+  gluten_free: boolean
+  allergens: string[]
+}
+
+export interface Targets {
+  kcal: number
+  protein_g: number
+  fat_g: number
+  carbs_g: number
+  source: string
+  disclaimer: string
+}
+
+export interface MealItem {
+  food_name: string
+  grams: number
+}
+
+export interface Meal {
+  type: string
+  items: MealItem[]
+}
+
+export interface DayTotals {
+  kcal: number
+  protein_g: number
+  fat_g: number
+  carbs_g: number
+}
+
+export interface MealDay {
+  day: string
+  meals: Meal[]
+  totals: DayTotals
+}
+
+export interface MealPlan {
+  id: number
+  structure: MealDay[]
+  disclaimer: string
+}
+
+export interface ShoppingItem {
+  food_name: string
+  grams: number
+}
+
+export const mealsApi = {
+  listFoods: () => api.get<Food[]>('/meals/foods'),
+  createFood: (d: FoodInput) => api.post<Food>('/meals/foods', d),
+  updateFood: (id: number, d: FoodInput) => api.put<Food>(`/meals/foods/${id}`, d),
+  deleteFood: (id: number) => api.delete<GenericMessageResponse>(`/meals/foods/${id}`),
+
+  getInventory: () => api.get<InventoryItem[]>('/meals/inventory'),
+  addInventory: (d: { food_name: string; quantity_grams?: number | null; new_food?: FoodInput | null }) =>
+    api.post<InventoryItem>('/meals/inventory', d),
+  removeInventory: (foodId: number) =>
+    api.delete<GenericMessageResponse>(`/meals/inventory/${foodId}`),
+
+  getDietary: () => api.get<Dietary>('/meals/dietary'),
+  putDietary: (d: Dietary) => api.put<Dietary>('/meals/dietary', d),
+
+  getTargets: () =>
+    api.get<Targets | { message: string; disclaimer: string }>('/meals/targets'),
+  putTargets: (d: { kcal: number; protein_g: number; fat_g: number; carbs_g: number }) =>
+    api.put<Targets>('/meals/targets', d),
+  deriveTargets: () => api.post<Targets>('/meals/targets/derive'),
+
+  generatePlan: () => api.post<MealPlan>('/meals/plan/generate'),
+  getPlan: () => api.get<MealPlan | { message: string }>('/meals/plan'),
+
+  getShoppingList: () => api.get<ShoppingItem[]>('/meals/shopping-list'),
+
+  lookupBarcode: (code: string) => api.get<FoodCandidate>(`/meals/barcode/${encodeURIComponent(code)}`),
+  searchFood: (q: string) => api.get<FoodCandidate[]>(`/meals/food-search?q=${encodeURIComponent(q)}`),
+
+  search: (q: string) => api.get<SearchResult[]>(`/meals/search?q=${encodeURIComponent(q)}`),
+  listRecipes: () => api.get<Recipe[]>('/meals/recipes'),
+  createRecipe: (d: RecipeInput) => api.post<Recipe>('/meals/recipes', d),
+  deleteRecipe: (id: number) => api.delete<GenericMessageResponse>(`/meals/recipes/${id}`),
+  addRecipeToInventory: (d: { recipe_id: number; grams: number }) =>
+    api.post<{ recipe_id: number; recipe_name: string; grams: number | null }>('/meals/inventory/recipe', d),
+}
+
+// ── Goal Wizard ───────────────────────────────────────────────────────────────
+export interface DietPhase {
+  index: number
+  start_weight: number
+  end_weight: number
+  weeks: number
+  kcal: number | null
+  protein_g: number | null
+  fat_g: number | null
+  carbs_g: number | null
+  status: 'active' | 'completed' | 'pending'
+  maintenance: boolean
+}
+
+export interface PhasePlan {
+  phases: DietPhase[]
+  active_phase: DietPhase | null
+  goal_reached: boolean
+  disclaimer: string
+}
+
+export interface WizardState {
+  step: 'profile' | 'goal' | 'equipment' | 'diet' | 'training_days' | 'routine' | 'summary'
+  profile_complete: boolean
+  has_goal: boolean
+  has_plan: boolean
+  has_routine: boolean
+  // Saved values for prefilling the wizard (all optional).
+  weight_kg?: number | null
+  height_cm?: number | null
+  age?: number | null
+  sex?: string | null
+  level?: string | null
+  days_per_week?: number | null
+  minutes_per_session?: number | null
+  goal_type?: string | null
+  target_weight_kg?: number | null
+  target_date?: string | null
+  equipment?: string[]
+}
+
+export const goalPlanApi = {
+  getState: () => api.get<WizardState>('/goal-plan/state'),
+  putProfile: (d: {
+    weight_kg: number
+    height_cm: number
+    age: number
+    sex?: string | null
+    level: string
+    days_per_week: number
+    minutes_per_session: number
+  }) => api.put('/goal-plan/profile', d),
+  putGoal: (d: { target_weight_kg: number; target_date: string }) =>
+    api.put('/goal-plan/goal', d),
+  putEquipment: (d: { equipment: string[] }) => api.put('/goal-plan/equipment', d),
+  derivePhases: () => api.post<PhasePlan>('/goal-plan/phases/derive'),
+  getPhases: () => api.get<PhasePlan | { message: string }>('/goal-plan/phases'),
+  putTrainingDays: (d: { days_per_week: number }) =>
+    api.put('/goal-plan/training-days', d),
+  generateRoutine: () => api.post<WorkoutPlan>('/goal-plan/routine/generate'),
+  generateRoutineChunk: (chunkIndex: number, chunkCount: number) =>
+    api.post<WorkoutPlan>('/goal-plan/routine/generate-chunk', { chunk_index: chunkIndex, chunk_count: chunkCount }),
+  putRoutine: (d: { structure: WorkoutDay[] }) =>
+    api.put<WorkoutPlan>('/goal-plan/routine', d),
+  putActiveTargets: (d: { kcal: number; protein_g: number; fat_g: number; carbs_g: number }) =>
+    api.put<PhasePlan>('/goal-plan/phases/active/targets', d),
+  postWeight: (d: { weight_kg: number; entry_date: string }) =>
+    api.post<PhasePlan | { message: string }>('/goal-plan/weight', d),
+}

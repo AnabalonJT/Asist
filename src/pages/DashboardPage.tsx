@@ -2,12 +2,43 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { dashboardApi, DashboardStats } from '../lib/api'
 import { TelegramLinkCard } from '../components/TelegramLinkCard'
-import { ActivityRow } from '../components/ActivityRow'
 import { StatCard } from '../components/StatCard'
 import { Calendar } from '../components/Calendar'
+import { ReminderList } from '../components/ReminderList'
+import { GoalList } from '../components/GoalList'
+import { ChallengeList } from '../components/ChallengeList'
+import { ActivityFeed } from '../components/ActivityFeed'
+
+// Inline Lucide-style icons (no emoji, no new dependency).
+function IconZap() {
+  return (
+    <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+    </svg>
+  )
+}
+function IconFlame() {
+  return (
+    <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 17c1.4 0 2.5-1 2.5-2.6 0-1.3-.8-2.2-1.5-3.1-.9-1.2-1.3-2.3-1.2-3.8-1.6.9-3.3 2.9-3.3 5.5 0 .5.1 1 .2 1.5Z" />
+      <path d="M12 2c1 2.5.5 4-1 5.5C9 9.5 7 11 7 14a5 5 0 0 0 10 0c0-2-1-3.8-2.5-5.3" />
+    </svg>
+  )
+}
+function IconClock() {
+  return (
+    <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  )
+}
 
 export function DashboardPage() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [telegramLinked, setTelegramLinked] = useState(user?.telegram_linked ?? false)
@@ -17,166 +48,106 @@ export function DashboardPage() {
       const { data } = await dashboardApi.stats()
       setStats(data)
       setTelegramLinked(data.telegram_linked)
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false)
-    }
+    } catch { /* ignore */ }
+    finally { setLoading(false) }
   }
 
   useEffect(() => {
     fetchStats()
-    // Auto-refresh every 30s
     const interval = setInterval(fetchStats, 30000)
     return () => clearInterval(interval)
   }, [])
 
+  const streak = stats?.current_streak ?? 0
+  const streakActive = streak > 0
+  const name = user?.email ? user.email.split('@')[0] : ''
+
   return (
-    <div className="min-h-full">
-      {/* Top nav */}
-      <header className="border-b border-bg-border bg-bg-surface/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🏃</span>
-            <span className="font-semibold text-text-primary">HabitBot</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-text-dim hidden sm:block">{user?.email}</span>
-            <button onClick={logout} className="btn-ghost text-sm py-1.5">
-              Salir
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="space-y-6">
+      {/* Greeting */}
+      <div>
+        <h1 className="font-display text-2xl font-semibold text-text-primary leading-none">
+          Hola{name ? `, ${name}` : ''}
+        </h1>
+        <p className="text-text-secondary text-sm mt-1">Tu resumen de actividad</p>
+      </div>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* Greeting */}
-        <div>
-          <h1 className="text-xl font-semibold text-text-primary">
-            Hola{user?.email ? `, ${user.email.split('@')[0]}` : ''} 👋
-          </h1>
-          <p className="text-text-secondary text-sm mt-0.5">Tu resumen de actividad</p>
-        </div>
-
-        {/* Telegram link card */}
-        <TelegramLinkCard
-          linked={telegramLinked}
-          onLinked={() => {
-            setTelegramLinked(true)
-            fetchStats()
-          }}
-        />
-
-        {/* Main Stats */}
-        {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="card h-20 animate-pulse bg-bg-elevated" />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard
-              icon="⚡"
-              label="Actividades"
-              value={stats?.total_activities ?? 0}
-            />
-            <StatCard
-              icon="🔥"
-              label="Calorías"
-              value={stats ? `${(stats.total_calories / 1000).toFixed(1)}k` : '0'}
-              sub="total"
-            />
-            <StatCard
-              icon="📅"
-              label="Racha"
-              value={stats?.current_streak ?? 0}
-              sub="días"
-            />
-            <StatCard
-              icon="⏱"
-              label="Tiempo"
-              value={stats ? `${Math.round((stats.total_minutes ?? 0) / 60)}h` : '0'}
-              sub="total"
-            />
-          </div>
-        )}
-
-        {/* Week comparison */}
-        {stats && stats.week_comparison && (
-          <div className="card flex items-center justify-between">
+      {/* Streak hero — the one bold element on the page */}
+      {loading ? (
+        <div className="card h-28 animate-pulse bg-bg-elevated" />
+      ) : (
+        <div className="card relative overflow-hidden">
+          <div
+            aria-hidden="true"
+            className={`absolute -right-6 -top-10 w-40 h-40 rounded-full blur-2xl ${
+              streakActive ? 'bg-success-glow' : 'bg-bg-elevated'
+            }`}
+          />
+          <div className="relative flex items-end justify-between">
             <div>
-              <p className="text-xs text-text-secondary">Esta semana</p>
-              <p className="text-lg font-semibold text-text-primary">{stats.week_comparison.this_week} actividades</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-text-secondary">vs semana pasada</p>
-              <p className={`text-sm font-mono ${stats.week_comparison.change_pct >= 0 ? 'text-success' : 'text-danger'}`}>
-                {stats.week_comparison.change_pct >= 0 ? '↑' : '↓'} {Math.abs(stats.week_comparison.change_pct)}%
+              <p className="text-sm text-text-secondary mb-1">Racha actual</p>
+              <div className="flex items-baseline gap-2">
+                <span
+                  className={`display text-6xl ${
+                    streakActive ? 'text-success' : 'text-text-dim'
+                  }`}
+                >
+                  {streak}
+                </span>
+                <span className="font-display text-xl text-text-secondary">
+                  {streak === 1 ? 'día' : 'días'}
+                </span>
+              </div>
+              <p className="text-sm text-text-secondary mt-2">
+                {streakActive
+                  ? '¡Sigue así! No rompas la cadena.'
+                  : 'Registra una actividad para empezar tu racha.'}
               </p>
             </div>
-          </div>
-        )}
-
-        {/* Calendar */}
-        <Calendar />
-
-        {/* Breakdown by type */}
-        {stats && stats.breakdown.length > 0 && (
-          <div className="card">
-            <h2 className="text-sm font-semibold text-text-primary mb-3">Desglose por actividad</h2>
-            <div className="space-y-2">
-              {stats.breakdown.map((b) => (
-                <div key={b.activity_type} className="flex items-center justify-between py-1.5 border-b border-bg-border last:border-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm capitalize">{b.activity_type}</span>
-                    <span className="badge bg-bg-elevated text-text-dim">{b.count}x</span>
-                  </div>
-                  <div className="text-xs text-text-secondary">
-                    {b.total_minutes > 0 && <span>{b.total_minutes} min</span>}
-                    {b.total_calories > 0 && <span className="ml-2 text-warning">{b.total_calories} cal</span>}
-                  </div>
-                </div>
-              ))}
+            <div
+              className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                streakActive ? 'bg-success/15 text-success' : 'bg-bg-elevated text-text-dim'
+              }`}
+            >
+              <IconFlame />
             </div>
           </div>
-        )}
-
-        {/* Recent activities */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold text-text-primary">Actividad reciente</h2>
-            {stats && stats.recent_activities.length > 0 && (
-              <span className="badge bg-bg-elevated text-text-secondary">
-                últimas {stats.recent_activities.length}
-              </span>
-            )}
-          </div>
-
-          {loading ? (
-            <div className="space-y-3 py-2">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="h-12 rounded-lg bg-bg-elevated animate-pulse" />
-              ))}
-            </div>
-          ) : stats && stats.recent_activities.length > 0 ? (
-            <div>
-              {stats.recent_activities.map((a) => (
-                <ActivityRow key={a.id} activity={a} />
-              ))}
-            </div>
-          ) : (
-            <div className="py-10 text-center">
-              <p className="text-2xl mb-2">📭</p>
-              <p className="text-sm text-text-secondary">
-                {telegramLinked
-                  ? 'Manda un mensaje al bot para registrar tu primera actividad'
-                  : 'Conecta Telegram para empezar a registrar actividades'}
-              </p>
-            </div>
-          )}
         </div>
-      </main>
+      )}
+
+      {/* Telegram link */}
+      <TelegramLinkCard
+        linked={telegramLinked}
+        onLinked={() => { setTelegramLinked(true); fetchStats() }}
+      />
+
+      {/* Supporting stats — quieter than the hero */}
+      {loading ? (
+        <div className="grid grid-cols-3 gap-3">
+          {[0, 1, 2].map((i) => <div key={i} className="card h-20 animate-pulse bg-bg-elevated" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          <StatCard icon={<IconZap />} label="Actividades" value={stats?.total_activities ?? 0} />
+          <StatCard icon={<IconFlame />} label="Calorías" value={stats ? `${(stats.total_calories / 1000).toFixed(1)}k` : '0'} sub="total" />
+          <StatCard icon={<IconClock />} label="Tiempo" value={stats ? `${Math.round((stats.total_minutes ?? 0) / 60)}h` : '0'} sub="total" />
+        </div>
+      )}
+
+      {/* Reminders */}
+      <ReminderList />
+
+      {/* Challenges */}
+      <ChallengeList />
+
+      {/* Goals */}
+      <GoalList />
+
+      {/* Calendar */}
+      <Calendar />
+
+      {/* Activity feed */}
+      <ActivityFeed />
     </div>
   )
 }

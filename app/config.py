@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # OpenRouter LLM
     openrouter_api_key: str = "test_key"
-    openrouter_model: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
+    openrouter_model: str = "nvidia/nemotron-3.5-lightning:free"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
     # JWT Authentication
@@ -55,6 +55,29 @@ class Settings(BaseSettings):
         if self.telegram_bot_token not in ("test_token", ""):
             return self.telegram_bot_token
         return self.telegram_token or self.telegram_bot_token
+
+    @property
+    def async_database_url(self) -> str:
+        """Convert DATABASE_URL to asyncpg format and add SSL for external connections."""
+        url = self.database_url
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgresql://") and "+asyncpg" not in url:
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        # Render external DB requires SSL
+        if "render.com" in url and "sslmode" not in url and "ssl=" not in url:
+            separator = "&" if "?" in url else "?"
+            url += f"{separator}ssl=require"
+        return url
+
+    @property
+    def is_production(self) -> bool:
+        return not self.debug
+
+    @property
+    def use_webhook(self) -> bool:
+        """Use webhook in production (non-debug). Polling only for local dev."""
+        return not self.debug
 
 
 settings = Settings()

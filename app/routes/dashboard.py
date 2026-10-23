@@ -13,12 +13,20 @@ from app.models.activity import Activity
 router = APIRouter()
 
 
+class ActivitySet(BaseModel):
+    reps: int | None = None
+    weight_kg: float | None = None
+
+
 class ActivityOut(BaseModel):
     id: int
     activity_type: str
+    exercise_name: str | None = None
     duration_minutes: int | None
     distance_km: float | None
     calories: int
+    sets: list[ActivitySet] = []
+    total_volume: float = 0.0
     timestamp: str
 
     @classmethod
@@ -26,9 +34,12 @@ class ActivityOut(BaseModel):
         return cls(
             id=a.id,
             activity_type=a.activity_type,
+            exercise_name=a.exercise_name,
             duration_minutes=a.duration_minutes,
             distance_km=a.distance_km,
             calories=a.calories,
+            sets=[ActivitySet(reps=s.get("reps"), weight_kg=s.get("weight_kg")) for s in a.sets_list()],
+            total_volume=a.total_volume(),
             timestamp=a.timestamp.isoformat() if a.timestamp else "",
         )
 

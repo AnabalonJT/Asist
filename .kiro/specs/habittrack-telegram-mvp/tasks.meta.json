@@ -1,0 +1,305 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "23.1 Update LLM prompt for multi-set strength parsing": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718395314
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718442275
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718554896
+      }
+    ],
+    "23.2 Update Activity model for strength data": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718396220
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718560158
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718671075
+      }
+    ],
+    "23.3 Update bot confirmation for strength exercises": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718396868
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718675835
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718853661
+      }
+    ],
+    "23.4 Update dashboard to display strength exercises": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718397313
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718858798
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792719114540
+      }
+    ],
+    "24.1 Create Goal model": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718397808
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792719122013
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792719293018
+      }
+    ],
+    "24.2 Add goal intent to LLM prompt": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718398285
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725059539
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725176946
+      }
+    ],
+    "24.3 Implement goal progress tracking": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718398428
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725182388
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725440715
+      }
+    ],
+    "24.4 Show goals in dashboard": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718398606
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725446004
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725513884
+      }
+    ],
+    "24.5 Goal management via bot": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718398945
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725519980
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725726331
+      }
+    ],
+    "25.1 Update Reminder model for flexible schedules": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718399347
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725732551
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725871242
+      }
+    ],
+    "25.2 Update LLM prompt for advanced reminder parsing": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718399747
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725877518
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725961561
+      }
+    ],
+    "25.3 Update scheduler for flexible delivery": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718400673
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725966983
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792726097809
+      }
+    ],
+    "25.4 Update reminder display in dashboard and bot": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718401045
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792726103587
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792726285025
+      }
+    ],
+    "26. Checkpoint - Phase 2 complete": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718401373
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792726291149
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792726541661
+      }
+    ],
+    "27.1 Make calendar days clickable with activity modal": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718401768
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792726548030
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792726759259
+      }
+    ],
+    "27.2 Move reminders above challenges in dashboard layout": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718402124
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792726765608
+      },
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792726841868
+      }
+    ],
+    "23. Strength training detailed logging": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792719115103
+      }
+    ],
+    "24. Habit goals system": [
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792725726550
+      }
+    ],
+    "25. Advanced reminder scheduling": [
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792726285236
+      }
+    ],
+    "27. Interactive calendar and layout fix": [
+      {
+        "executionId": "0b585224-692e-4e10-8593-c3f709a9462f",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792726842070
+      }
+    ]
+  }
+}

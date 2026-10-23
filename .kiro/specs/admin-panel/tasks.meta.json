@@ -1,0 +1,409 @@
+{
+  "pbtResults": {
+    "3.6 Write property test for detail/list summary consistency": {
+      "status": "passed",
+      "lastRunTimestamp": 1792718212798
+    },
+    "3.7 Write property test for detail windowed activity counts": {
+      "status": "passed",
+      "lastRunTimestamp": 1792718214323
+    },
+    "3.8 Write property test for last-activity max/null": {
+      "status": "passed",
+      "lastRunTimestamp": 1792718215103
+    },
+    "3.9 Write property test asserting no secret fields in any admin response": {
+      "status": "passed",
+      "lastRunTimestamp": 1792718215845
+    }
+  },
+  "executionHistory": {
+    "1.1 Create `app/routes/admin.py` with response models and the overview endpoint": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442382753
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442394863
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442496846
+      }
+    ],
+    "1.2 Implement the per-user list endpoint (`GET /users`) with the no-N+1 grouped-count approach": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442384420
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442501909
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442543705
+      }
+    ],
+    "1.3 Implement the single-user detail endpoint (`GET /users/{user_id}`)": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442384620
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442548286
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442687719
+      }
+    ],
+    "1.4 Register the admin router in `app/main.py`": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442384766
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442692696
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442753943
+      }
+    ],
+    "2. Checkpoint - backend endpoints wired": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442384940
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442762387
+      }
+    ],
+    "5. Checkpoint - backend fully tested": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442385075
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442836474
+      }
+    ],
+    "6.1 Add admin interfaces and `adminApi` module to `src/lib/api.ts`": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442385194
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442693818
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442756265
+      }
+    ],
+    "7.1 Create the `AdminRoute` guard component": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442385271
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442763186
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442819054
+      }
+    ],
+    "7.2 Create the `AdminPage` with Spanish overview cards and per-user table": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442385351
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442837432
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442913185
+      }
+    ],
+    "8.1 Wire the `/admin` route into the protected block in `src/main.tsx`": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442385431
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442838455
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442912211
+      }
+    ],
+    "8.2 Add the conditional Admin tab to `src/components/Navbar.tsx`": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442385527
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442764242
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442819889
+      }
+    ],
+    "9.1 Run backend tests and frontend build": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442385618
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442917527
+      },
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789443009783
+      }
+    ],
+    "1. Create the backend admin router with Pydantic models and the three endpoints": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442754018
+      }
+    ],
+    "6. Frontend types and API module": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442756339
+      }
+    ],
+    "8. Frontend routing and navigation wiring": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442912307
+      }
+    ],
+    "7. Frontend admin gating and page": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789442913262
+      }
+    ],
+    "9. Final verification": [
+      {
+        "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1789443009895
+      }
+    ],
+    "3.1 Write property test for overview totals": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717263188
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717859279
+      }
+    ],
+    "3.2 Write property test for active-user window counts": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717263980
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717861439
+      }
+    ],
+    "3.3 Write property test for the user-list bijection": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717264921
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717862161
+      }
+    ],
+    "3.4 Write property test for per-user summary field passthrough/derivation": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717265985
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717863601
+      }
+    ],
+    "3.5 Write property test for per-user entity counts (incl. zero default)": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717267027
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717864244
+      }
+    ],
+    "3. Backend property-based tests (Hypothesis) for the aggregation and privacy logic": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717860143
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717862871
+      }
+    ],
+    "3.6 Write property test for detail/list summary consistency": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717871273
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718236211
+      }
+    ],
+    "3.7 Write property test for detail windowed activity counts": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717872600
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718236751
+      }
+    ],
+    "3.8 Write property test for last-activity max/null": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717873534
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718237555
+      }
+    ],
+    "3.9 Write property test asserting no secret fields in any admin response": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717874693
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718238905
+      }
+    ],
+    "4.1 Write the auth matrix integration tests across all three endpoints": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717875782
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718239788
+      }
+    ],
+    "4. Backend example / integration tests (pytest)": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718240315
+      }
+    ],
+    "4.2 Write the single-user, 404, and null-last-activity example tests": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718246170
+      }
+    ],
+    "7.3 Add optional per-user detail drill-down UI to `AdminPage`": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718247075
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718382203
+      }
+    ]
+  }
+}

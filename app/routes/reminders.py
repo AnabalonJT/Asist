@@ -18,10 +18,16 @@ class ReminderOut(BaseModel):
     frequency: str
     message: str
     active: bool
+    schedule_days: str | None = None
+    schedule_date: str | None = None
 
     @classmethod
     def from_model(cls, r: Reminder) -> "ReminderOut":
-        return cls(id=r.id, schedule=r.schedule, frequency=r.frequency, message=r.message, active=r.active)
+        return cls(
+            id=r.id, schedule=r.schedule, frequency=r.frequency,
+            message=r.message, active=r.active,
+            schedule_days=r.schedule_days, schedule_date=r.schedule_date,
+        )
 
 
 class ReminderCreate(BaseModel):

@@ -1,0 +1,398 @@
+{
+  "pbtResults": {
+    "3.5 Property test del predicado de validez del código de barras": {
+      "status": "passed",
+      "lastRunTimestamp": 1792546228622
+    },
+    "3.2 Property test del mapeo de nutrientes (presentes vs. ausentes)": {
+      "status": "passed",
+      "lastRunTimestamp": 1792546233933
+    },
+    "3.3 Property test del fallback de nombre al código de barras": {
+      "status": "passed",
+      "lastRunTimestamp": 1792546247306
+    }
+  },
+  "executionHistory": {
+    "1.1 Añadir la columna `barcode` a `app/models/food.py`": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025321405
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025332229
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025376164
+      }
+    ],
+    "2.1 Añadir la migración de columna en runtime (`_migrate_columns`)": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025321658
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025381725
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025500815
+      }
+    ],
+    "2.2 Crear la migración Alembic `add_food_barcode`": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025321915
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025382633
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025501306
+      }
+    ],
+    "3.1 Crear `app/services/food_lookup_service.py` con constantes, excepciones y helpers puros": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025322099
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025383621
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025502389
+      }
+    ],
+    "4.1 Implementar `lookup_barcode` y `search_by_name` con httpx asíncrono": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025322247
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025508159
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025653575
+      }
+    ],
+    "5.1 Añadir `barcode` a `FoodIn` y persistirlo en `create_food`/`add_inventory`": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025322410
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025509241
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025654093
+      }
+    ],
+    "6.1 Añadir `FoodCandidateOut` y los endpoints al router existente": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025322621
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025669566
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025763457
+      }
+    ],
+    "7. Checkpoint backend": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025322720
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025768282
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025809106
+      }
+    ],
+    "8.1 Añadir `FoodCandidate` y métodos a `mealsApi` en `src/lib/api.ts`": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025322819
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025819037
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025894876
+      }
+    ],
+    "9.1 Crear `src/components/BarcodeScanner.tsx`": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025322970
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025927656
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792026133467
+      }
+    ],
+    "9.2 Crear `src/components/FoodConfirm.tsx` y `FoodSearchBox`": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025323075
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025926834
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792026134208
+      }
+    ],
+    "10.1 Montar escáner, búsqueda y confirmación en `src/pages/MealsPage.tsx`": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025323221
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792026139099
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792026228746
+      }
+    ],
+    "11. Checkpoint final": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025323361
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792026233197
+      },
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792026253821
+      }
+    ],
+    "1. Extender el modelo `Food` con la columna `barcode`": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025376312
+      }
+    ],
+    "2. Migraciones de la columna `barcode`": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025501469
+      }
+    ],
+    "3. Servicio de lookup externo — función pura de mapeo y helpers": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025502602
+      }
+    ],
+    "4. Servicio de lookup externo — funciones de I/O (httpx)": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025653880
+      }
+    ],
+    "5. Propagar `barcode` por el flujo de alta existente": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025654283
+      }
+    ],
+    "6. Endpoints de lookup y búsqueda en `/api/meals`": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025763607
+      }
+    ],
+    "8. Frontend — API client": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792025895036
+      }
+    ],
+    "9. Frontend — componentes de escáner, búsqueda y confirmación": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792026134345
+      }
+    ],
+    "10. Frontend — integración en `MealsPage`": [
+      {
+        "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
+        "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
+        "timestamp": 1792026228909
+      }
+    ],
+    "3.2 Property test del mapeo de nutrientes (presentes vs. ausentes)": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546165669
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546286929
+      }
+    ],
+    "3.3 Property test del fallback de nombre al código de barras": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546166339
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546285575
+      }
+    ],
+    "3.4 Property test de robustez y forma completa del candidato": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546167726
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546287815
+      }
+    ],
+    "3.5 Property test del predicado de validez del código de barras": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546168700
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546283622
+      }
+    ],
+    "4.2 Tests de ejemplo del servicio con mock de httpx (sin red)": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546169590
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546284562
+      }
+    ],
+    "5.2 Tests de ejemplo de alta con `barcode` (reuso de `add_inventory`)": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546292321
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546563082
+      }
+    ],
+    "6.2 Tests de integración de los endpoints (mock de Open Food Facts)": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546293152
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546563718
+      }
+    ],
+    "9.3 Component tests de los componentes del front": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546294251
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546564706
+      }
+    ]
+  }
+}

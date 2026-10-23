@@ -27,7 +27,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/habittrack
-      DEBUG: "false"
+      DEBUG: "true"
     ports:
       - "80:8000"
 
