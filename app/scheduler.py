@@ -20,6 +20,84 @@ scheduler = AsyncIOScheduler()
 _summary_sent_this_week: str = ""  # Track to prevent duplicate sends
 
 
+def should_deliver(
+    frequency: str,
+    schedule: str,
+    schedule_days: str | None,
+    schedule_date: str | None,
+    last_sent_at: datetime | None,
+    user_now: datetime,
+    now_utc: datetime,
+) -> bool:
+    """Pure decision: should this reminder fire *now*?
+
+    This is the extracted, side-effect-free core of ``deliver_reminders``. It
+    takes the reminder's scheduling fields plus two clocks — ``user_now`` (the
+    current time in the user's timezone, used for HH:MM / weekday / date
+    matching) and ``now_utc`` (used for the dedupe + interval windows, matching
+    how ``last_sent_at`` is stored) — and returns True only when the reminder is
+    due. It never touches the DB or Telegram, so every branch is unit-testable.
+
+    Behavior is intentionally identical to the previous inline logic, with two
+    safety hardenings (no behavior change for well-formed data):
+      * ``specific_days`` with missing/empty/all-invalid ``schedule_days`` is
+        treated as "no day matches" → skip (never crash, never fire on an
+        undefined day set).
+      * ``once`` with a NULL ``schedule_date`` still fires at its time; the
+        caller deactivates a ``once`` reminder right after sending, so it fires
+        exactly once. ``once`` with a date only fires on that date.
+
+    day numbering: 0=Mon .. 6=Sun (``datetime.weekday()``).
+    """
+    # 1. Time-of-day must match the user's local HH:MM.
+    if schedule != user_now.strftime("%H:%M"):
+        return False
+
+    # 2. Dedupe: never send twice within ~a day (guards the 1-min tick and
+    #    restarts). Uses UTC because last_sent_at is stored in UTC.
+    if last_sent_at is not None:
+        hours_since = (now_utc - last_sent_at).total_seconds() / 3600
+        if hours_since < 23:
+            return False
+
+    day_of_week = user_now.weekday()  # 0=Mon, 6=Sun
+    today_str = user_now.strftime("%Y-%m-%d")
+
+    # 3. Frequency / day rules.
+    if frequency == "weekdays":
+        if day_of_week >= 5:  # Sat/Sun
+            return False
+    elif frequency == "weekends":
+        if day_of_week < 5:  # Mon-Fri
+            return False
+    elif frequency == "specific_days":
+        allowed_days = [
+            int(d.strip())
+            for d in (schedule_days or "").split(",")
+            if d.strip().isdigit()
+        ]
+        if day_of_week not in allowed_days:
+            # Also covers malformed/empty schedule_days -> no day matches.
+            return False
+    elif frequency == "once":
+        # A dated one-time reminder only fires on its date; an undated one
+        # fires at its time (the caller then deactivates it -> fires once).
+        if schedule_date and schedule_date != today_str:
+            return False
+    elif frequency == "biweekly":
+        # First-ever send (last_sent_at None) is allowed; otherwise wait ~2wk.
+        if last_sent_at is not None:
+            days_since = (now_utc - last_sent_at).days
+            if days_since < 13:  # ~2 weeks
+                return False
+    elif frequency == "weekly":
+        if day_of_week != 0:  # Monday only
+            return False
+    # "daily" (and any unknown frequency) falls through -> deliver.
+
+    return True
+
+
 async def deliver_reminders():
     """Check and deliver due reminders every minute, respecting user timezones."""
     from zoneinfo import ZoneInfo
@@ -48,37 +126,18 @@ async def deliver_reminders():
             user_now = datetime.now(tz)
             user_current_time = user_now.strftime("%H:%M")
 
-            # Check if it's time to deliver this reminder
-            if reminder.schedule != user_current_time:
-                continue
-
-            # Skip if already sent in last 23 hours (prevent duplicates)
-            if reminder.last_sent_at:
-                hours_since = (now_utc - reminder.last_sent_at).total_seconds() / 3600
-                if hours_since < 23:
-                    continue
-
-            # Check frequency / day rules
-            day_of_week = user_now.weekday()  # 0=Mon, 6=Sun
-            today_str = user_now.strftime("%Y-%m-%d")
-
-            if reminder.frequency == "weekdays" and day_of_week >= 5:
-                continue
-            elif reminder.frequency == "weekends" and day_of_week < 5:
-                continue
-            elif reminder.frequency == "specific_days" and reminder.schedule_days:
-                allowed_days = [int(d.strip()) for d in reminder.schedule_days.split(",") if d.strip().isdigit()]
-                if day_of_week not in allowed_days:
-                    continue
-            elif reminder.frequency == "once":
-                if reminder.schedule_date and reminder.schedule_date != today_str:
-                    continue
-            elif reminder.frequency == "biweekly":
-                if reminder.last_sent_at:
-                    days_since = (now_utc - reminder.last_sent_at).days
-                    if days_since < 13:  # ~2 weeks
-                        continue
-            elif reminder.frequency == "weekly" and day_of_week != 0:
+            # Pure decision: is this reminder due right now? (time + dedupe +
+            # frequency/day rules). Keeps I/O out of the decision so it's
+            # unit-testable — see should_deliver().
+            if not should_deliver(
+                frequency=reminder.frequency,
+                schedule=reminder.schedule,
+                schedule_days=reminder.schedule_days,
+                schedule_date=reminder.schedule_date,
+                last_sent_at=reminder.last_sent_at,
+                user_now=user_now,
+                now_utc=now_utc,
+            ):
                 continue
 
             # Send reminder
@@ -254,28 +313,10 @@ async def send_goal_notifications():
 
 
 async def _calc_goal_progress(goal, user_id: int, db) -> int:
-    """Calculate progress for a goal in its current period."""
-    from sqlalchemy import func as sa_func
+    """Calculate progress for a goal in its current period (shared helper)."""
+    from app.services.goal_progress import goal_progress_count
 
-    now = datetime.utcnow()
-    if goal.period == "daily":
-        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    elif goal.period == "weekly":
-        start = now - timedelta(days=now.weekday())
-        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
-    else:
-        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    result = await db.execute(
-        select(sa_func.count())
-        .select_from(Activity)
-        .where(
-            Activity.user_id == user_id,
-            sa_func.lower(Activity.activity_type) == normalize_activity_type(goal.activity_type),
-            Activity.timestamp >= start,
-        )
-    )
-    return result.scalar() or 0
+    return await goal_progress_count(db, user_id, goal.activity_type, goal.period)
 
 
 def _expected_periods(start_date, end_date, period: str) -> int:

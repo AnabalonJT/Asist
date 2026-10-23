@@ -37,15 +37,15 @@ El plan implementa el rediseño de "Agregar alimento" en pasos incrementales, re
     - `create_recipe` (valida nombre 1..100, ≥1 ingrediente, gramos 1..100000, Food existente vía `_normalize_name`; `ValidationError` en español), `list_recipes` (con `compute_recipe_nutrition`), `delete_recipe` (scope por user_id; `RecipeNotFoundError`/`ForbiddenRecipeError`)
     - _Requirements: 4.1, 4.3, 4.4, 4.5, 4.6, 8.4_
 
-  - [ ]* 3.2 Property test del viaje de ida y vuelta de recetas
+  - [x]* 3.2 Property test del viaje de ida y vuelta de recetas
     - **Feature: food-add-redesign, Property 4: Alta y lectura de una Recipe son un viaje de ida y vuelta**
     - **Validates: Requirements 4.1, 4.5**
 
-  - [ ]* 3.3 Property test de recetas inválidas
+  - [x]* 3.3 Property test de recetas inválidas
     - **Feature: food-add-redesign, Property 6: Toda Recipe inválida se rechaza y no se registra**
     - **Validates: Requirements 4.3, 4.4**
 
-  - [ ]* 3.4 Property test de eliminación de receta
+  - [x]* 3.4 Property test de eliminación de receta
     - **Feature: food-add-redesign, Property 9: Eliminar una Recipe preserva los Food referenciados**
     - **Validates: Requirements 4.6**
 
@@ -62,7 +62,7 @@ El plan implementa el rediseño de "Agregar alimento" en pasos incrementales, re
     - Esquema `InventoryRecipeIn`; `get_current_user`; excepciones a español (404 para receta ajena/inexistente)
     - _Requirements: 5.1, 5.4, 8.1, 8.5_
 
-  - [ ]* 4.3 Property test de dedup y validación de gramos al agregar receta
+  - [x]* 4.3 Property test de dedup y validación de gramos al agregar receta
     - **Feature: food-add-redesign, Property 7: Agregar una Recipe al inventario deduplica y valida los gramos**
     - **Validates: Requirements 5.2, 5.3**
 
@@ -82,15 +82,15 @@ El plan implementa el rediseño de "Agregar alimento" en pasos incrementales, re
     - `get_current_user`; traducir `ValidationError` a 400 en español
     - _Requirements: 2.1, 2.3, 2.5, 8.1, 8.5_
 
-  - [ ]* 6.4 Property test del subconjunto de búsqueda
+  - [x]* 6.4 Property test del subconjunto de búsqueda
     - **Feature: food-add-redesign, Property 3: La búsqueda incremental solo devuelve resultados locales que coinciden y de orígenes permitidos**
     - **Validates: Requirements 2.1**
 
-  - [ ]* 6.5 Property test de serialización de Search_Result
+  - [x]* 6.5 Property test de serialización de Search_Result
     - **Feature: food-add-redesign, Property 2: La serialización de un Search_Result conserva los campos presentes**
     - **Validates: Requirements 1.5, 2.3**
 
-  - [ ]* 6.6 Tests de integración del respaldo a Open Food Facts (mock)
+  - [x]* 6.6 Tests de integración del respaldo a Open Food Facts (mock)
     - Sin resultados locales invoca el fallback; con locales no lo invoca; un fallo del fallback devuelve solo locales sin excepción
     - _Requirements: 2.2, 2.6_
 
@@ -99,11 +99,11 @@ El plan implementa el rediseño de "Agregar alimento" en pasos incrementales, re
     - Añadir `brand` a `FoodIn`; validar longitud ≤100 en `create_food`/`add_inventory` (`ValidationError` en español); persistir en `Food.brand`; incluir `brand` en `FoodOut` y en los Search_Result
     - _Requirements: 1.2, 1.3, 1.4, 1.5_
 
-  - [ ]* 7.2 Property test de rechazo de entradas inválidas
+  - [x]* 7.2 Property test de rechazo de entradas inválidas
     - **Feature: food-add-redesign, Property 1: Toda entrada inválida se rechaza y preserva el estado**
     - **Validates: Requirements 1.4, 2.5, 3.4**
 
-  - [ ]* 7.3 Property test de privacidad
+  - [x]* 7.3 Property test de privacidad
     - **Feature: food-add-redesign, Property 8: El inventario y las recetas se limitan a su dueño**
     - **Validates: Requirements 2.7, 5.4, 8.4**
 
@@ -120,7 +120,7 @@ El plan implementa el rediseño de "Agregar alimento" en pasos incrementales, re
     - Input con retardo de 300 ms (setTimeout + cleanup); llama a `mealsApi.search`; renderiza los Search_Result; estado vacío con mensaje en español que ofrece crear nuevo
     - _Requirements: 2.4, 7.6_
 
-  - [ ]* 10.2 Tests de ejemplo del debounce y estado vacío
+  - [x]* 10.2 Tests de ejemplo del debounce y estado vacío
     - Temporizadores falsos: varias pulsaciones en <300 ms producen una sola solicitud; sin resultados muestra el aviso de crear nuevo
     - _Requirements: 2.4, 7.6_
 
@@ -137,7 +137,7 @@ El plan implementa el rediseño de "Agregar alimento" en pasos incrementales, re
     - Resultado `catalog`/`inventory`/`off` → `FoodConfirm`; resultado `recipe` → agregar al inventario como unidad; barcode decodificado/manual → `lookupBarcode`
     - _Requirements: 6.4, 7.3, 7.4_
 
-  - [ ]* 11.3 Tests de ejemplo de carga diferida y limpieza de cámara
+  - [x]* 11.3 Tests de ejemplo de carga diferida y limpieza de cámara
     - Al montar la página no se monta el escáner ni se llama a `getUserMedia`; al activar escanear se monta tras el import; al cerrar se detiene la cámara (mock de `MediaStream`)
     - _Requirements: 6.1, 6.2, 6.5_
 
@@ -146,7 +146,7 @@ El plan implementa el rediseño de "Agregar alimento" en pasos incrementales, re
     - Montar `AddFoodPanel`; eliminar la lista completa del catálogo/despensa y el formulario de inventario siempre visible del flujo de alta; conservar las secciones de preferencias, metas y plan
     - _Requirements: 7.1, 7.2_
 
-  - [ ]* 12.2 Tests de ejemplo del panel unificado
+  - [x]* 12.2 Tests de ejemplo del panel unificado
     - Las cinco acciones se renderizan en español; seleccionar una acción oculta las demás y las listas completas; `prefers-reduced-motion` desactiva las animaciones de movimiento
     - _Requirements: 7.1, 7.2, 7.5_
 

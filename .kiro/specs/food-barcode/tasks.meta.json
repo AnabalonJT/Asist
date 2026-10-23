@@ -1,5 +1,18 @@
 {
-  "pbtResults": {},
+  "pbtResults": {
+    "3.5 Property test del predicado de validez del código de barras": {
+      "status": "passed",
+      "lastRunTimestamp": 1792546228622
+    },
+    "3.2 Property test del mapeo de nutrientes (presentes vs. ausentes)": {
+      "status": "passed",
+      "lastRunTimestamp": 1792546233933
+    },
+    "3.3 Property test del fallback de nombre al código de barras": {
+      "status": "passed",
+      "lastRunTimestamp": 1792546247306
+    }
+  },
   "executionHistory": {
     "1.1 Añadir la columna `barcode` a `app/models/food.py`": [
       {
@@ -283,6 +296,102 @@
         "executionId": "5bcdb961-9d5e-4d03-ae51-1a8e8c97a502",
         "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
         "timestamp": 1792026228909
+      }
+    ],
+    "3.2 Property test del mapeo de nutrientes (presentes vs. ausentes)": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546165669
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546286929
+      }
+    ],
+    "3.3 Property test del fallback de nombre al código de barras": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546166339
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546285575
+      }
+    ],
+    "3.4 Property test de robustez y forma completa del candidato": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546167726
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546287815
+      }
+    ],
+    "3.5 Property test del predicado de validez del código de barras": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546168700
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546283622
+      }
+    ],
+    "4.2 Tests de ejemplo del servicio con mock de httpx (sin red)": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546169590
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546284562
+      }
+    ],
+    "5.2 Tests de ejemplo de alta con `barcode` (reuso de `add_inventory`)": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546292321
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546563082
+      }
+    ],
+    "6.2 Tests de integración de los endpoints (mock de Open Food Facts)": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546293152
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546563718
+      }
+    ],
+    "9.3 Component tests de los componentes del front": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546294251
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546564706
       }
     ]
   }

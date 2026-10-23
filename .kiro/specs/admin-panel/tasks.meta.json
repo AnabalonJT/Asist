@@ -1,5 +1,22 @@
 {
-  "pbtResults": {},
+  "pbtResults": {
+    "3.6 Write property test for detail/list summary consistency": {
+      "status": "passed",
+      "lastRunTimestamp": 1792718212798
+    },
+    "3.7 Write property test for detail windowed activity counts": {
+      "status": "passed",
+      "lastRunTimestamp": 1792718214323
+    },
+    "3.8 Write property test for last-activity max/null": {
+      "status": "passed",
+      "lastRunTimestamp": 1792718215103
+    },
+    "3.9 Write property test asserting no secret fields in any admin response": {
+      "status": "passed",
+      "lastRunTimestamp": 1792718215845
+    }
+  },
   "executionHistory": {
     "1.1 Create `app/routes/admin.py` with response models and the overview endpoint": [
       {
@@ -228,6 +245,164 @@
         "executionId": "7cf14987-ddb1-4a7b-bccb-620775f33305",
         "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
         "timestamp": 1789443009895
+      }
+    ],
+    "3.1 Write property test for overview totals": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717263188
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717859279
+      }
+    ],
+    "3.2 Write property test for active-user window counts": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717263980
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717861439
+      }
+    ],
+    "3.3 Write property test for the user-list bijection": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717264921
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717862161
+      }
+    ],
+    "3.4 Write property test for per-user summary field passthrough/derivation": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717265985
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717863601
+      }
+    ],
+    "3.5 Write property test for per-user entity counts (incl. zero default)": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717267027
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717864244
+      }
+    ],
+    "3. Backend property-based tests (Hypothesis) for the aggregation and privacy logic": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717860143
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717862871
+      }
+    ],
+    "3.6 Write property test for detail/list summary consistency": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717871273
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718236211
+      }
+    ],
+    "3.7 Write property test for detail windowed activity counts": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717872600
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718236751
+      }
+    ],
+    "3.8 Write property test for last-activity max/null": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717873534
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718237555
+      }
+    ],
+    "3.9 Write property test asserting no secret fields in any admin response": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717874693
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718238905
+      }
+    ],
+    "4.1 Write the auth matrix integration tests across all three endpoints": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717875782
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718239788
+      }
+    ],
+    "4. Backend example / integration tests (pytest)": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718240315
+      }
+    ],
+    "4.2 Write the single-user, 404, and null-last-activity example tests": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718246170
+      }
+    ],
+    "7.3 Add optional per-user detail drill-down UI to `AdminPage`": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718247075
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792718382203
       }
     ]
   }

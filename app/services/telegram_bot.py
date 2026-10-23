@@ -107,9 +107,17 @@ async def _message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     from app.routes.telegram import (
         _detect_fitness_keywords,
+        _detect_goal_keywords,
         _detect_meal_keywords,
         _detect_strength_keywords,
     )
+
+    # Quick keyword detection for single goals (LLM fallback + override).
+    # NOTE: this only covers goal *creation* ("quiero correr 3 veces por semana").
+    # "mis metas" (list) and "eliminar meta de correr" (delete) rely on the LLM
+    # returning intent="goal" with action="list"/"delete"; they are dispatched
+    # below once intent == "goal".
+    forced_goal = _detect_goal_keywords(text)
 
     # Quick keyword detection for fitness/workout routines (LLM fallback + override)
     forced_fitness = _detect_fitness_keywords(text)
@@ -123,7 +131,9 @@ async def _message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     response = await interpret_message(text)
 
     if not response:
-        if forced_strength:
+        if forced_goal:
+            response = forced_goal
+        elif forced_strength:
             response = forced_strength
         elif forced_fitness:
             response = forced_fitness
@@ -139,12 +149,16 @@ async def _message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if intent in ("chat", "fitness") and forced_strength:
         intent = "activity"
         response = forced_strength
+    # Override for goals (only if the LLM did not already recognize a goal/challenge)
+    elif intent not in ("goal", "challenge", "activity", "reminder") and forced_goal:
+        intent = "goal"
+        response = forced_goal
     # Override for fitness routines (only if not already a recognized intent here)
-    elif intent not in ("activity", "reminder", "timezone", "fitness", "meal") and forced_fitness:
+    elif intent not in ("activity", "reminder", "timezone", "goal", "fitness", "meal") and forced_fitness:
         intent = "fitness"
         response = forced_fitness
     # Override for meal plans (only if not already a recognized intent here)
-    elif intent not in ("activity", "reminder", "timezone", "fitness", "meal") and forced_meal:
+    elif intent not in ("activity", "reminder", "timezone", "goal", "fitness", "meal") and forced_meal:
         intent = "meal"
         response = forced_meal
 
@@ -154,6 +168,8 @@ async def _message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await _handle_reminder(update, user, response, Reminder)
     elif intent == "timezone":
         await _handle_timezone(update, user, response)
+    elif intent == "goal":
+        await _handle_goal(update, user, response)
     elif intent == "fitness":
         await _handle_fitness(update, user, response)
     elif intent == "meal":
@@ -162,8 +178,70 @@ async def _message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await _send_chat_response(update, user)
 
 
+def _format_set(s: dict) -> str:
+    """Format a single strength set as "reps×weightkg" (e.g. "10×40kg").
+
+    Handles a set with a missing/null weight gracefully by showing just the
+    reps (e.g. "10 reps"). Non-dict entries fall back to an empty label.
+    """
+    if not isinstance(s, dict):
+        return ""
+    reps = s.get("reps")
+    weight = s.get("weight_kg")
+    if weight is None:
+        return f"{reps} reps"
+    # Drop a trailing ".0" so 40.0 shows as 40.
+    weight_str = f"{weight:g}" if isinstance(weight, (int, float)) else str(weight)
+    return f"{reps}×{weight_str}kg"
+
+
+def _build_strength_confirmation(icon: str, exercise_name: str | None,
+                                 activity_type: str, sets: list | None,
+                                 detail: str | None, duration_minutes: int | None,
+                                 calories: int) -> str:
+    """Build the Spanish Telegram confirmation message for a strength activity.
+
+    Pure/string-only so it can be unit-tested without a Telegram update. When
+    detailed ``sets`` are present it shows the exercise name as the title, a
+    "N series: ..." detail line, and total VOLUME (reps × weight summed) instead
+    of calories. When there are no sets (e.g. "hice gym 40 min") it falls back to
+    the duration/calories display so non-detailed strength entries still work.
+    """
+    # Title: the exercise name (never the generic word), properly capitalized.
+    name = (exercise_name or activity_type or "").strip()
+    name = name[:1].upper() + name[1:] if name else activity_type.capitalize()
+    msg = f"✅ {icon} Registrado: *{name}*"
+
+    valid_sets = [s for s in (sets or []) if isinstance(s, dict)]
+    if valid_sets:
+        sets_str = ", ".join(_format_set(s) for s in valid_sets)
+        msg += f"\n📋 {len(valid_sets)} series: {sets_str}"
+        # Total volume = sum of reps × weight_kg across all sets.
+        total_vol = 0.0
+        for s in valid_sets:
+            try:
+                reps = float(s.get("reps") or 0)
+                weight = float(s.get("weight_kg") or 0)
+            except (ValueError, TypeError):
+                continue
+            total_vol += reps * weight
+        if total_vol > 0:
+            # Thousands separator, no decimals (e.g. "Vol: 1,880 kg").
+            msg += f"\n📊 Vol: {round(total_vol):,} kg"
+    else:
+        # Non-detailed strength entry: fall back to duration/calories.
+        if detail:
+            msg += f"\n📋 {detail}"
+        if duration_minutes:
+            msg += f"\n⏱ {duration_minutes} min"
+        if calories > 0:
+            msg += f"\n🔥 ~{calories} cal"
+    return msg
+
+
 async def _handle_activity(update, user, response, calorie_service, Activity):
     """Process and log an activity."""
+    import json as json_mod
     from app.services.llm_service import parse_activity
 
     activity_data = parse_activity(response)
@@ -180,22 +258,38 @@ async def _handle_activity(update, user, response, calorie_service, Activity):
             distance_km=activity_data.distance_km,
         )
 
-    # Save activity to database
+    # Normalize the activity_type so goal matching is consistent with the webhook
+    # path, the routes, and the scheduler (all share activity_types/goal_progress).
+    from app.services.activity_types import normalize_activity_type
+    from app.services.goal_progress import check_goal_progress
+
+    normalized_activity_type = normalize_activity_type(activity_data.activity_type)
+
+    # Save activity to database. Persist strength detail (exercise_name + sets)
+    # when present; sport/habit/life rows keep the existing shape (both nullable).
+    goal_msg: str | None = None
     async with AsyncSessionLocal() as db:
         activity = Activity(
             user_id=user.id,
-            activity_type=activity_data.activity_type,
+            activity_type=normalized_activity_type,
+            exercise_name=(activity_data.exercise_name or activity_data.activity_type)
+            if activity_data.category == "strength" else None,
             duration_minutes=activity_data.duration_minutes,
             distance_km=activity_data.distance_km,
             calories=calories,
+            sets_data=json_mod.dumps(activity_data.sets) if activity_data.sets else None,
         )
         db.add(activity)
         await db.commit()
         logger.info(
             "Activity logged: user_id=%s type=%s cat=%s dur=%s dist=%s cal=%s",
-            user.id, activity_data.activity_type, activity_data.category,
+            user.id, normalized_activity_type, activity_data.category,
             activity_data.duration_minutes, activity_data.distance_km, calories
         )
+
+        # Append goal progress ("🎯 Meta ..." / "🏆 ¡Meta cumplida!") when the
+        # user has an active goal for this activity type — parity with webhook.
+        goal_msg = await check_goal_progress(db, user.id, normalized_activity_type)
 
     # Build confirmation message based on category
     icon = {
@@ -223,13 +317,15 @@ async def _handle_activity(update, user, response, calorie_service, Activity):
         msg += f"\n🔥 {calories} cal estimadas"
 
     elif activity_data.category == "strength":
-        msg = f"✅ {icon} Registrado: *{name}*"
-        if activity_data.detail:
-            msg += f"\n📋 {activity_data.detail}"
-        if activity_data.duration_minutes:
-            msg += f"\n⏱ {activity_data.duration_minutes} min"
-        if calories > 0:
-            msg += f"\n🔥 ~{calories} cal"
+        msg = _build_strength_confirmation(
+            icon=icon,
+            exercise_name=activity_data.exercise_name,
+            activity_type=activity_data.activity_type,
+            sets=activity_data.sets,
+            detail=activity_data.detail,
+            duration_minutes=activity_data.duration_minutes,
+            calories=calories,
+        )
 
     else:  # habit
         msg = f"✅ {icon} Registrado: *{name}*"
@@ -238,6 +334,9 @@ async def _handle_activity(update, user, response, calorie_service, Activity):
         if activity_data.detail:
             msg += f"\n📝 {activity_data.detail}"
         msg += "\n📊 ¡Sumado a tu racha!"
+
+    if goal_msg:
+        msg += f"\n\n{goal_msg}"
 
     await update.message.reply_text(msg, parse_mode="Markdown")
 
@@ -269,8 +368,12 @@ async def _handle_reminder(update, user, response, Reminder):
             await db.commit()
             logger.info("Reminder created: user_id=%s msg=%s at=%s", user.id, reminder_data.message, schedule)
 
-        freq_text = {"daily": "todos los días", "weekly": "semanalmente", "weekdays": "lunes a viernes"}.get(
-            reminder_data.frequency, reminder_data.frequency
+        from app.services.reminder_format import format_reminder_schedule
+        freq_text = format_reminder_schedule(
+            reminder_data.frequency,
+            schedule=schedule,
+            schedule_days=getattr(reminder_data, "schedule_days", None),
+            schedule_date=getattr(reminder_data, "schedule_date", None),
         )
         await update.message.reply_text(
             f"⏰ Recordatorio creado!\n\n"
@@ -292,10 +395,10 @@ async def _handle_reminder(update, user, response, Reminder):
             await update.message.reply_text("No tienes recordatorios activos. Crea uno con: \"recuérdame [hábito] a las [hora]\"")
             return
 
+        from app.services.reminder_format import format_reminder_from_model
         lines = ["⏰ *Tus recordatorios:*\n"]
         for r in reminders:
-            freq = {"daily": "diario", "weekly": "semanal", "weekdays": "L-V"}.get(r.frequency, r.frequency)
-            lines.append(f"• {r.message} — {r.schedule} ({freq})")
+            lines.append(f"• {format_reminder_from_model(r)}")
         await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
     elif reminder_data.action in ("delete", "pause"):
@@ -368,6 +471,144 @@ async def _handle_timezone(update, user, response):
         "Tus registros y recordatorios usarán esta zona.",
         parse_mode="Markdown"
     )
+
+
+def _build_goal_list_message(goals_with_progress: list[tuple]) -> str:
+    """Build the Spanish "Tus metas" list message. Pure/string-only.
+
+    ``goals_with_progress`` is a list of (description, progress, target_count,
+    period) tuples. Mirrors the webhook's list output: a header, then one block
+    per goal with a status emoji (✅ when the target is reached, 🔄 otherwise),
+    the description, and a progress bar with ``n/target period``. Reusing the
+    shared ``progress_bar`` keeps the bar identical across webhook and polling.
+    """
+    from app.services.goal_progress import progress_bar
+
+    period_text_map = {"daily": "hoy", "weekly": "esta semana", "monthly": "este mes"}
+    lines = ["🎯 *Tus metas:*\n"]
+    for description, progress, target_count, period in goals_with_progress:
+        bar = progress_bar(progress, target_count)
+        period_text = period_text_map.get(period, period)
+        status = "✅" if progress >= target_count else "🔄"
+        lines.append(f"{status} {description}\n   {bar} {progress}/{target_count} {period_text}")
+    return "\n".join(lines)
+
+
+async def _handle_goal(update, user, response):
+    """Handle goal create / list / delete — parity with the webhook path.
+
+    Reuses the shared ``goal_progress`` helpers and ``normalize_activity_type``
+    so goal matching and progress math stay identical across webhook, polling,
+    routes, and scheduler. User-facing text is Spanish.
+    """
+    from sqlalchemy import select as sa_select
+
+    from app.services.llm_service import parse_goal
+    from app.services.goal_progress import goal_progress_count
+    from app.services.activity_types import normalize_activity_type
+    from app.models.goal import Goal
+
+    goal_data = parse_goal(response)
+    if not goal_data:
+        await update.message.reply_text(
+            "No entendí tu meta. Intenta: \"quiero correr 3 veces por semana\""
+        )
+        return
+
+    if goal_data.action == "create":
+        if not goal_data.activity_type:
+            await update.message.reply_text(
+                "¿Qué actividad quieres como meta? Ej: \"meta: meditar todos los días\""
+            )
+            return
+
+        description = goal_data.description or (
+            f"{goal_data.activity_type} {goal_data.target_count}x/{goal_data.period}"
+        )
+        async with AsyncSessionLocal() as db:
+            goal = Goal(
+                user_id=user.id,
+                activity_type=normalize_activity_type(goal_data.activity_type),
+                description=description,
+                target_count=goal_data.target_count,
+                period=goal_data.period,
+                ends_at=goal_data.ends_at,
+                active=True,
+            )
+            db.add(goal)
+            await db.commit()
+            logger.info(
+                "Goal created: user_id=%s type=%s target=%s period=%s",
+                user.id, goal.activity_type, goal_data.target_count, goal_data.period,
+            )
+
+        period_text = {"daily": "al día", "weekly": "por semana", "monthly": "al mes"}.get(
+            goal_data.period, goal_data.period
+        )
+        if goal_data.ends_at:
+            duration_text = f"\n📅 Hasta: {goal_data.ends_at}"
+        else:
+            duration_text = "\n♾️ Sin fecha límite"
+
+        await update.message.reply_text(
+            f"🎯 Meta creada!\n\n"
+            f"📌 *{description}*\n"
+            f"🏆 {goal_data.target_count} veces {period_text}{duration_text}\n\n"
+            f"_Te mostraré tu progreso cada vez que registres esta actividad_",
+            parse_mode="Markdown",
+        )
+
+    elif goal_data.action == "list":
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                sa_select(Goal).where(Goal.user_id == user.id, Goal.active == True)
+            )
+            goals = result.scalars().all()
+
+            if not goals:
+                await update.message.reply_text(
+                    "No tienes metas activas. Crea una con: "
+                    "\"quiero correr 3 veces por semana\""
+                )
+                return
+
+            goals_with_progress = []
+            for g in goals:
+                progress = await goal_progress_count(db, g.user_id, g.activity_type, g.period)
+                goals_with_progress.append((g.description, progress, g.target_count, g.period))
+
+        await update.message.reply_text(
+            _build_goal_list_message(goals_with_progress), parse_mode="Markdown"
+        )
+
+    elif goal_data.action == "delete":
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                sa_select(Goal).where(Goal.user_id == user.id, Goal.active == True)
+            )
+            goals = result.scalars().all()
+
+            target = None
+            if goal_data.activity_type:
+                needle = goal_data.activity_type.lower()
+                for g in goals:
+                    if needle in g.activity_type.lower():
+                        target = g
+                        break
+
+            if target:
+                target.active = False  # soft delete — deactivate, do not hard-delete
+                await db.commit()
+                await update.message.reply_text(
+                    f"✅ Meta *{target.description}* eliminada.", parse_mode="Markdown"
+                )
+            else:
+                await update.message.reply_text("No encontré esa meta.")
+
+    else:
+        await update.message.reply_text(
+            "No entendí qué quieres hacer con tus metas."
+        )
 
 
 def _format_workout_plan(plan) -> str:

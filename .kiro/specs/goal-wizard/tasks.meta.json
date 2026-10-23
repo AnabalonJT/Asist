@@ -1,5 +1,34 @@
 {
-  "pbtResults": {},
+  "pbtResults": {
+    "3.3 Property test de resolución del paso inicial": {
+      "status": "passed",
+      "lastRunTimestamp": 1792539688577
+    },
+    "3.8 Property test del ritmo por fase": {
+      "status": "passed",
+      "lastRunTimestamp": 1792539699216
+    },
+    "3.7 Property test de derivación determinista y poscondición de macros": {
+      "status": "passed",
+      "lastRunTimestamp": 1792539717446
+    },
+    "3.11 Property test de la extensión de la fase ante progreso insuficiente": {
+      "status": "passed",
+      "lastRunTimestamp": 1792539917566
+    },
+    "3.10 Property test del avance de fase al alcanzar el peso de fin": {
+      "status": "passed",
+      "lastRunTimestamp": 1792540174032
+    },
+    "4.3 Property test de consulta con fases ordenadas por índice": {
+      "status": "passed",
+      "lastRunTimestamp": 1792540397663
+    },
+    "5.6 Property test del descargo médico en respuestas con metas o rutina": {
+      "status": "passed",
+      "lastRunTimestamp": 1792540786762
+    }
+  },
   "executionHistory": {
     "1.1 Crear `app/models/diet_phase_plan.py`": [
       {
@@ -368,6 +397,307 @@
         "executionId": "2d54134a-7d3a-4eaf-b8cf-14fd3c02aec6",
         "chatSessionId": "ebe2ecb4-9e3b-47ca-bd41-d2d0c8a3636e",
         "timestamp": 1792033429654
+      }
+    ],
+    "3.3 Property test de resolución del paso inicial": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539598775
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539756981
+      }
+    ],
+    "3.5 Property test de los invariantes del fraccionamiento en fases": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539599681
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539758224
+      }
+    ],
+    "3.7 Property test de derivación determinista y poscondición de macros": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539600603
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539759178
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546585285
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546726531
+      }
+    ],
+    "3.8 Property test del ritmo por fase": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539604862
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539760644
+      }
+    ],
+    "3.10 Property test del avance de fase al alcanzar el peso de fin": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539605473
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539761574
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540020021
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540216471
+      }
+    ],
+    "3. Capa de servicio: constantes y lógica pura de fases": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539757346
+      }
+    ],
+    "3.11 Property test de la extensión de la fase ante progreso insuficiente": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539765839
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539975398
+      }
+    ],
+    "3.12 Property test del salto múltiple al sobrepasar varias fases": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539767255
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539976243
+      }
+    ],
+    "3.13 Property test de la fase de mantenimiento al completar el trayecto": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539768187
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539977522
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546585697
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546727089
+      }
+    ],
+    "1.3 Property test del round-trip de persistencia del plan de fases": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539769599
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539974407
+      }
+    ],
+    "4.2 Property test de a lo más un plan de fases activo por usuario": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539770561
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792539978811
+      }
+    ],
+    "4.3 Property test de consulta con fases ordenadas por índice": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540222528
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540808850
+      }
+    ],
+    "5.3 Property test de la respuesta de dieta (todas las fases + descargo)": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540224006
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540807202
+      }
+    ],
+    "5.4 Property test de la respuesta de objetivo (ritmo + descargo)": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540225359
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540806210
+      }
+    ],
+    "5.5 Property test de privacidad (solo registros propios)": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540227015
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540810483
+      }
+    ],
+    "5.6 Property test del descargo médico en respuestas con metas o rutina": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540227859
+      },
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540807847
+      }
+    ],
+    "7.4 Tests de avance de fase vía weigh-in (integración)": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540816784
+      },
+      {
+        "executionId": "ea67e465-d309-448f-940b-fb3005ff8a44",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792544639236
+      }
+    ],
+    "7.1 Tests de autenticación y wiring por paso": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540818385
+      },
+      {
+        "executionId": "ea67e465-d309-448f-940b-fb3005ff8a44",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792544641095
+      }
+    ],
+    "7.2 Tests de generación de rutina con mock del LLM": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540819754
+      },
+      {
+        "executionId": "ea67e465-d309-448f-940b-fb3005ff8a44",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792544666368
+      }
+    ],
+    "7.3 Tests de edición en el resumen": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540821939
+      },
+      {
+        "executionId": "ea67e465-d309-448f-940b-fb3005ff8a44",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792544640444
+      }
+    ],
+    "4.6 Property test de preservación del estado ante fallo de generación de rutina": [
+      {
+        "executionId": "d7b11aa2-2aca-4294-b685-b3a0357ffb53",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792540822766
+      },
+      {
+        "executionId": "ea67e465-d309-448f-940b-fb3005ff8a44",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792544642510
+      }
+    ],
+    "7. Tests de ejemplo e integración del backend": [
+      {
+        "executionId": "ea67e465-d309-448f-940b-fb3005ff8a44",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792544640644
+      },
+      {
+        "executionId": "ea67e465-d309-448f-940b-fb3005ff8a44",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792544640846
+      }
+    ],
+    "10.2 Component tests de GoalWizard y sus pasos": [
+      {
+        "executionId": "ea67e465-d309-448f-940b-fb3005ff8a44",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792544671006
+      },
+      {
+        "executionId": "ea67e465-d309-448f-940b-fb3005ff8a44",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792545148955
       }
     ]
   }

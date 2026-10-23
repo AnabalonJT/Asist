@@ -87,9 +87,15 @@ export function ReminderList() {
           >
             <div className="flex-1 min-w-0">
               <p className="text-sm text-text-primary truncate">{r.message}</p>
-              <p className="text-xs text-text-secondary">
-                🕐 {r.schedule} · {formatFreq(r)}
-              </p>
+              {r.frequency === 'once' ? (
+                <p className="text-xs text-text-secondary">
+                  📅 {formatFreq(r)} {r.schedule} <span className="text-text-dim italic">(una vez)</span>
+                </p>
+              ) : (
+                <p className="text-xs text-text-secondary">
+                  🔁 {r.schedule} · {formatFreq(r)}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2 ml-2">
               <button

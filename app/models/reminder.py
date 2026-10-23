@@ -13,22 +13,40 @@ if TYPE_CHECKING:
 
 class Reminder(Base):
     """
-    Reminder configuration model.
-    
-    Frequency types:
+    Reminder configuration model (flexible schedules — Phase 2, advanced reminders).
+
+    Schema reconciliation note:
+    The spec task lists separate ``schedule_type`` and ``schedule_interval``
+    fields, but the design (see design.md "Reminder Model") and the entire
+    implementation (scheduler.py, llm_service.py, routes/reminders.py) encode
+    BOTH concepts in the single ``frequency`` column. ``frequency`` therefore
+    carries the spec's ``schedule_type`` AND its ``schedule_interval``
+    ("biweekly" is simply a frequency value). We deliberately keep one column
+    instead of adding redundant ``schedule_type``/``schedule_interval`` columns,
+    which would fragment the schema and break the scheduler/LLM that read
+    ``frequency``.
+
+    ``frequency`` values (schedule_type + interval combined):
     - "daily": every day
     - "weekdays": Mon-Fri
-    - "weekends": Sat-Sun
-    - "specific_days": uses schedule_days JSON (e.g. "0,2,4" = Lun,Mie,Vie)
+    - "weekends": Sat-Sun  (spec's [5,6] "fin de semana")
+    - "specific_days": uses schedule_days CSV (e.g. "0,2" = Lun,Mie)
     - "once": one-time reminder, uses schedule_date
-    - "biweekly": every 2 weeks
+    - "biweekly": every 2 weeks (spec's "every_other_week"/"biweekly" interval,
+      driven by last_sent_at)
+    - "weekly": once a week (Monday)
+
+    All flexible-schedule columns (schedule_days, schedule_date, challenge_id)
+    are nullable so legacy reminders (daily/weekdays/weekends) stay valid.
     """
     __tablename__ = "reminders"
     
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     schedule: Mapped[str] = mapped_column(String(100))  # HH:MM
-    frequency: Mapped[str] = mapped_column(String(50))  # daily, weekdays, weekends, specific_days, once, biweekly
+    # Encodes the spec's schedule_type AND schedule_interval in one column:
+    # daily, weekdays, weekends, specific_days, once, biweekly, weekly
+    frequency: Mapped[str] = mapped_column(String(50))
     message: Mapped[str] = mapped_column(String(500))
     schedule_days: Mapped[str | None] = mapped_column(String(50))  # CSV of day numbers: "0,2,4" (Mon,Wed,Fri)
     schedule_date: Mapped[str | None] = mapped_column(String(20))  # "2026-07-06" for one-time

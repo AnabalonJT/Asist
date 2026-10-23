@@ -33,19 +33,19 @@ Plan de implementación incremental para el Food_Barcode (escáner y búsqueda d
     - `map_off_product(product, fallback_barcode) -> dict` (PURA): mapea `nutriments` por 100 g (`energy-kcal_100g`→kcal, `proteins_100g`→protein, `fat_100g`→fat, `carbohydrates_100g`→carbs, `fiber_100g`→fiber) con `None` para campos ausentes/None; `name` = `product_name` o, si falta/está vacío, `fallback_barcode`; incluir `brand`/`image_url` cuando están presentes; `source="off"`; nunca lanzar excepción; devolver todas las claves de la forma del `Food_Candidate`
     - _Requirements: 1.2, 2.3, 2.5, 2.6, 4.1, 4.2, 4.3, 4.4_
 
-  - [ ]* 3.2 Property test del mapeo de nutrientes (presentes vs. ausentes)
+  - [x]* 3.2 Property test del mapeo de nutrientes (presentes vs. ausentes)
     - **Property 1: El mapeo preserva los nutrientes presentes y nulifica los ausentes**
     - **Validates: Requirements 2.3, 2.5, 4.1, 4.2**
 
-  - [ ]* 3.3 Property test del fallback de nombre al código de barras
+  - [x]* 3.3 Property test del fallback de nombre al código de barras
     - **Property 2: El nombre siempre está definido (fallback al código de barras)**
     - **Validates: Requirements 4.3**
 
-  - [ ]* 3.4 Property test de robustez y forma completa del candidato
+  - [x]* 3.4 Property test de robustez y forma completa del candidato
     - **Property 3: El mapeo nunca falla y produce la forma completa del candidato**
     - **Validates: Requirements 2.5, 4.4**
 
-  - [ ]* 3.5 Property test del predicado de validez del código de barras
+  - [x]* 3.5 Property test del predicado de validez del código de barras
     - **Property 4: La validación del código de barras acepta exactamente los códigos de 8 a 14 dígitos**
     - **Validates: Requirements 1.2, 2.6**
 
@@ -56,7 +56,7 @@ Plan de implementación incremental para el Food_Barcode (escáner y búsqueda d
     - Enviar siempre el `User-Agent` descriptivo
     - _Requirements: 2.2, 2.3, 2.6, 2.7, 2.8, 3.2, 3.5, 4.5_
 
-  - [ ]* 4.2 Tests de ejemplo del servicio con mock de httpx (sin red)
+  - [x]* 4.2 Tests de ejemplo del servicio con mock de httpx (sin red)
     - `lookup_barcode`: mock `status:1` → candidato mapeado; mock `status:0` → `NotFoundError`; mock timeout/error → `ExternalSourceError`; mock transport asegura el header `User-Agent`
     - `search_by_name`: mock con productos → lista mapeada; mock de fallo → `[]`
     - _Requirements: 2.3, 2.7, 2.8, 3.2, 3.5, 4.5_
@@ -68,7 +68,7 @@ Plan de implementación incremental para el Food_Barcode (escáner y búsqueda d
     - Enforzar la unicidad del `barcode`: ante `IntegrityError` por `barcode` duplicado, hacer rollback y lanzar `ValidationError` en español ("Ese código de barras ya está asociado a otro alimento."), preservando el catálogo
     - _Requirements: 1.2, 1.4, 5.2, 5.3, 6.2_
 
-  - [ ]* 5.2 Tests de ejemplo de alta con `barcode` (reuso de `add_inventory`)
+  - [x]* 5.2 Tests de ejemplo de alta con `barcode` (reuso de `add_inventory`)
     - Alta de alimento nuevo con `barcode` → `Food` creado con `barcode` + entrada de inventario; nombre existente → sin duplicado en catálogo; `barcode` duplicado → `ValidationError` es y catálogo preservado; valores fuera de rango → `ValidationError` es
     - _Requirements: 1.4, 5.2, 5.3, 5.4_
 
@@ -80,7 +80,7 @@ Plan de implementación incremental para el Food_Barcode (escáner y búsqueda d
     - Todos los `detail` en español según la tabla de Error Handling del diseño
     - _Requirements: 2.1, 2.6, 2.7, 2.8, 3.1, 3.2, 3.4, 3.5, 6.1, 6.3_
 
-  - [ ]* 6.2 Tests de integración de los endpoints (mock de Open Food Facts)
+  - [x]* 6.2 Tests de integración de los endpoints (mock de Open Food Facts)
     - `/barcode/{code}`: sin token → 401; código inválido → 400 es; hit local → `source="local"` (mock OFF falla si se llama); miss local + mock `status:1` → `source="off"`; mock `status:0` → 404 es; mock timeout/error → 503 es
     - `/food-search`: término inválido → 400 es; con resultados locales → no consulta OFF; sin locales + mock con productos → combina; mock de fallo → solo locales; usuario no admin → 200 (Req 6.1); `POST/PUT/DELETE /foods` no admin → 403 (Req 6.3)
     - _Requirements: 2.1, 2.6, 2.7, 2.8, 3.1, 3.2, 3.4, 3.5, 6.1, 6.3_
@@ -108,7 +108,7 @@ Plan de implementación incremental para el Food_Barcode (escáner y búsqueda d
     - Español, Tailwind dark (tokens `card`, `text-primary`, `text-secondary`, `accent`, `btn-ghost`), estados loading/error
     - _Requirements: 5.1, 5.2, 5.4, 5.5, 7.5_
 
-  - [ ]* 9.3 Component tests de los componentes del front
+  - [x]* 9.3 Component tests de los componentes del front
     - `BarcodeScanner`: `getUserMedia` mockeado concede → vídeo; rechaza → mensaje es + entrada manual; entrada manual envía → `onDetected`
     - `FoodConfirm`: renderiza el texto de confirmación y los valores; "Agregar" llama a `addInventory`; "Cancelar" descarta sin llamar nada; error de rango muestra el `detail` es
     - `FoodSearchBox`: enviar término → `searchFood` llamado, lista renderizada

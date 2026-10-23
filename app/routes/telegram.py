@@ -1043,9 +1043,10 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
             if not reminders:
                 await _send(chat_id, "No tienes recordatorios activos.")
             else:
+                from app.services.reminder_format import format_reminder_from_model
                 lines = ["⏰ *Tus recordatorios:*\n"]
                 for r in reminders:
-                    lines.append(f"• {r.message} — {r.schedule} ({_format_frequency(r)})")
+                    lines.append(f"• {format_reminder_from_model(r)}")
                 await _send(chat_id, "\n".join(lines))
         elif reminder_data.action in ("delete", "pause"):
             res = await db.execute(select(Reminder).where(Reminder.user_id == user.id, Reminder.active == True))
@@ -1089,52 +1090,30 @@ async def _handle_message(chat_id: int, text: str, user: User, db: AsyncSession)
 
 
 def _format_frequency(r) -> str:
-    """Format reminder frequency in human-readable Spanish."""
-    DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+    """Format reminder cadence in human-readable Spanish.
 
-    if r.frequency == "daily":
-        return "todos los días"
-    elif r.frequency == "weekdays":
-        return "Lun a Vie"
-    elif r.frequency == "weekends":
-        return "Sáb y Dom"
-    elif r.frequency == "specific_days" and r.schedule_days:
-        days = [int(d.strip()) for d in r.schedule_days.split(",") if d.strip().isdigit()]
-        return " y ".join(DAY_NAMES[d] for d in days if d < 7)
-    elif r.frequency == "once" and r.schedule_date:
-        return f"solo {r.schedule_date}"
-    elif r.frequency == "biweekly":
-        return "cada 2 semanas"
-    elif r.frequency == "weekly":
-        return "semanal"
-    return r.frequency
+    Delegates to the shared ``reminder_format`` helper so the creation
+    confirmation and the "Tus recordatorios" list stay consistent.
+    """
+    from app.services.reminder_format import format_reminder_schedule
+
+    return format_reminder_schedule(
+        r.frequency,
+        schedule=getattr(r, "schedule", None),
+        schedule_days=getattr(r, "schedule_days", None),
+        schedule_date=getattr(r, "schedule_date", None),
+    )
 
 
 async def _check_goal_progress(user_id: int, activity_type: str, db: AsyncSession) -> str | None:
-    """Check if user has a goal for this activity type and return progress message."""
-    from app.models.goal import Goal
-    from sqlalchemy import func as sa_func
+    """Check if user has a goal for this activity type and return progress message.
 
-    normalized = normalize_activity_type(activity_type)
-    result = await db.execute(
-        select(Goal).where(
-            Goal.user_id == user_id,
-            sa_func.lower(Goal.activity_type) == normalized,
-            Goal.active == True,
-        )
-    )
-    goal = result.scalar_one_or_none()
-    if not goal:
-        return None
+    Thin wrapper over the shared ``goal_progress.check_goal_progress`` so the
+    webhook, polling bot, routes, and scheduler all share one implementation.
+    """
+    from app.services.goal_progress import check_goal_progress
 
-    progress = await _get_goal_progress(goal, db)
-    period_text = {"daily": "hoy", "weekly": "esta semana", "monthly": "este mes"}.get(goal.period, goal.period)
-
-    if progress >= goal.target_count:
-        return f"🏆 *¡Meta cumplida!* {goal.description} ({progress}/{goal.target_count} {period_text})"
-    else:
-        bar = _progress_bar(progress, goal.target_count)
-        return f"🎯 Meta: {bar} {progress}/{goal.target_count} {period_text}"
+    return await check_goal_progress(db, user_id, activity_type)
 
 
 def _format_workout_plan(plan) -> str:
@@ -1472,36 +1451,17 @@ async def _handle_goal(chat_id: int, user: User, response: dict, db: AsyncSessio
 
 
 async def _get_goal_progress(goal, db: AsyncSession) -> int:
-    """Count activities matching this goal in the current period."""
-    from datetime import datetime, timedelta
-    from sqlalchemy import func as sa_func
+    """Count activities matching this goal in the current period (shared helper)."""
+    from app.services.goal_progress import goal_progress_count
 
-    now = datetime.utcnow()
-
-    if goal.period == "daily":
-        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    elif goal.period == "weekly":
-        start = now - timedelta(days=now.weekday())
-        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
-    else:  # monthly
-        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    result = await db.execute(
-        select(sa_func.count())
-        .select_from(Activity)
-        .where(
-            Activity.user_id == goal.user_id,
-            sa_func.lower(Activity.activity_type) == normalize_activity_type(goal.activity_type),
-            Activity.timestamp >= start,
-        )
-    )
-    return result.scalar() or 0
+    return await goal_progress_count(db, goal.user_id, goal.activity_type, goal.period)
 
 
 def _progress_bar(current: int, target: int) -> str:
-    """Generate a text progress bar."""
-    filled = min(current, target)
-    return "▓" * filled + "░" * (target - filled)
+    """Generate a text progress bar (shared helper)."""
+    from app.services.goal_progress import progress_bar
+
+    return progress_bar(current, target)
 
 
 async def _send_help(chat_id: int, user: User) -> None:

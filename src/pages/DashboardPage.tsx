@@ -5,6 +5,9 @@ import { TelegramLinkCard } from '../components/TelegramLinkCard'
 import { StatCard } from '../components/StatCard'
 import { Calendar } from '../components/Calendar'
 import { ReminderList } from '../components/ReminderList'
+import { GoalList } from '../components/GoalList'
+import { ChallengeList } from '../components/ChallengeList'
+import { ActivityFeed } from '../components/ActivityFeed'
 
 // Inline Lucide-style icons (no emoji, no new dependency).
 function IconZap() {
@@ -134,8 +137,17 @@ export function DashboardPage() {
       {/* Reminders */}
       <ReminderList />
 
+      {/* Challenges */}
+      <ChallengeList />
+
+      {/* Goals */}
+      <GoalList />
+
       {/* Calendar */}
       <Calendar />
+
+      {/* Activity feed */}
+      <ActivityFeed />
     </div>
   )
 }

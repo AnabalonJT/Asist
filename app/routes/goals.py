@@ -1,16 +1,13 @@
 """Goals API routes."""
-from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.services.activity_types import normalize_activity_type
 from app.middleware.middleware import get_current_user
 from app.models.user import User
 from app.models.goal import Goal
-from app.models.activity import Activity
 
 router = APIRouter()
 
@@ -94,24 +91,7 @@ async def delete_goal(
 
 
 async def _calc_progress(goal: Goal, db: AsyncSession) -> int:
-    """Count matching activities in the current period."""
-    now = datetime.utcnow()
+    """Count matching activities in the current period (shared helper)."""
+    from app.services.goal_progress import goal_progress_count
 
-    if goal.period == "daily":
-        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    elif goal.period == "weekly":
-        start = now - timedelta(days=now.weekday())
-        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
-    else:
-        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    result = await db.execute(
-        select(func.count())
-        .select_from(Activity)
-        .where(
-            Activity.user_id == goal.user_id,
-            func.lower(Activity.activity_type) == normalize_activity_type(goal.activity_type),
-            Activity.timestamp >= start,
-        )
-    )
-    return result.scalar() or 0
+    return await goal_progress_count(db, goal.user_id, goal.activity_type, goal.period)

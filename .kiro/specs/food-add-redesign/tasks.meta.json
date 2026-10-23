@@ -447,6 +447,150 @@
         "chatSessionId": "sess_cb1b974f-60d5-4306-ac52-99ada17876bd",
         "timestamp": 1792538655477
       }
+    ],
+    "3.2 Property test del viaje de ida y vuelta de recetas": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546747959
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792547025787
+      }
+    ],
+    "3.3 Property test de recetas inválidas": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546749252
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792547026216
+      }
+    ],
+    "3.4 Property test de eliminación de receta": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546750207
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792547027870
+      }
+    ],
+    "4.3 Property test de dedup y validación de gramos al agregar receta": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546751220
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792547028649
+      }
+    ],
+    "6.4 Property test del subconjunto de búsqueda": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792546752224
+      },
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792547029513
+      }
+    ],
+    "6.5 Property test de serialización de Search_Result": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792547035416
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792716101656
+      }
+    ],
+    "7.2 Property test de rechazo de entradas inválidas": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792547037395
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792716551490
+      }
+    ],
+    "7.3 Property test de privacidad": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792547040083
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792716103055
+      }
+    ],
+    "10.2 Tests de ejemplo del debounce y estado vacío": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792547040820
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792716104354
+      }
+    ],
+    "6.6 Tests de integración del respaldo a Open Food Facts (mock)": [
+      {
+        "executionId": "ce091b01-6624-4852-bbbc-927828898d02",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792547041188
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792716103661
+      }
+    ],
+    "11.3 Tests de ejemplo de carga diferida y limpieza de cámara": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792716556485
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717239836
+      }
+    ],
+    "12.2 Tests de ejemplo del panel unificado": [
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792716557330
+      },
+      {
+        "executionId": "3c28c9a7-6ca1-4a91-9bae-e0a2d6821d93",
+        "chatSessionId": "sess_9b4479a1-07e5-4a17-9eff-d6bda5aad372",
+        "timestamp": 1792717240829
+      }
     ]
   }
 }

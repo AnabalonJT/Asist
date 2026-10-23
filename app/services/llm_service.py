@@ -58,13 +58,13 @@ Responde SIEMPRE en formato JSON con esta estructura:
 {
   "intent": "activity",
   "data": {
-    "activity_type": "string (running, walking, cycling, gym, swimming, yoga, hiking, weights, crossfit, stretching, basketball, football, tennis, dance, meditation, reading, study, strength, cardio)",
+    "activity_type": "string. Para deportes/hábitos/vida: running, walking, cycling, gym, swimming, yoga, hiking, crossfit, stretching, basketball, football, tennis, dance, meditation, reading, study, cardio, comer, baño, etc. IMPORTANTE: para category='strength' usa el NOMBRE DEL EJERCICIO (ej: 'Press Banca', 'Sentadillas', 'Peso Muerto'), NUNCA 'weights' ni 'strength'",
     "category": "sport" | "strength" | "habit" | "life",
     "duration_minutes": number o null,
     "distance_km": number o null,
     "detail": "string o null (detalle extra: peso, series, reps, libro, etc)",
-    "exercise_name": "string o null (nombre del ejercicio para fuerza: Press Banca, Sentadillas, etc)",
-    "sets": [{"reps": number, "weight_kg": number}] o null (series para fuerza),
+    "exercise_name": "string o null (nombre del ejercicio para fuerza: Press Banca, Sentadillas, etc. Debe coincidir con activity_type cuando category='strength')",
+    "sets": [{"reps": number, "weight_kg": number}] o null (una entrada por serie; para fuerza SIEMPRE rellena este arreglo),
     "confidence": 0.0-1.0
   }
 }
@@ -94,6 +94,8 @@ Ejemplos de recordatorios:
 - "el lunes 6 de julio a las 8am ir al Dr" → create, message="ir al Dr", schedule="08:00", frequency="once", schedule_date="2026-07-06"
 - "recordatorio de gym solo fines de semana a las 10" → create, message="gym", schedule="10:00", frequency="weekends"
 - "recuérdame estudiar de lunes a viernes a las 20:00" → create, message="estudiar", schedule="20:00", frequency="weekdays"
+- "cada 2 semanas ir al dentista" → create, message="ir al dentista", frequency="biweekly"
+- "recuérdame cada dos semanas pagar la tarjeta a las 9" → create, message="pagar la tarjeta", schedule="09:00", frequency="biweekly"
 - "recuerdame que el domingo 5 de julio a las 11:20 tengo que ver horarios de banco" → create, message="ver horarios de banco", schedule="11:20", frequency="once", schedule_date="2026-07-05"
 - "el martes a las 3pm tengo dentista" → create, message="dentista", schedule="15:00", frequency="once"
 - "mis recordatorios" → list
@@ -139,8 +141,12 @@ Ejemplos de metas:
 - "meta: meditar todos los días por 75 días" → create, activity_type="meditation", target_count=1, period="daily", ends_at=(fecha actual + 75 días)
 - "ir al gym 4 veces por semana hasta el 2 de septiembre" → create, activity_type="gym", target_count=4, period="weekly", ends_at="2026-09-02"
 - "correr diario por 3 meses" → create, activity_type="running", target_count=1, period="daily", ends_at=(fecha actual + 90 días)
+- "quiero correr los lunes, miércoles y viernes" → create, activity_type="running", target_count=3, period="weekly", ends_at=null
+- "meta de yoga los martes y jueves" → create, activity_type="yoga", target_count=2, period="weekly", ends_at=null
 - "mis metas" → list
 - "eliminar meta de correr" → delete, activity_type="running"
+
+REGLA de DÍAS ESPECÍFICOS en metas: si el usuario nombra días concretos (ej: "los lunes, miércoles y viernes"), la meta es period="weekly" con target_count = cantidad de días nombrados (3 en ese ejemplo). Las metas NO guardan los días concretos; solo cuentan la frecuencia semanal. Si el usuario quiere que se le avise en esos días exactos, eso es un recordatorio (intent="reminder", frequency="specific_days").
 
 ## Si el usuario quiere crear un DESAFÍO (múltiples metas agrupadas):
 {
@@ -195,12 +201,20 @@ Ejemplos de comidas:
 - "plan de comidas para bajar de peso" → generate, goal_type="lose_weight"
 - "ver mi plan de comidas" / "mi plan" → view
 
+Reglas de FUERZA (category="strength") — léelas con atención:
+- Para fuerza, activity_type y exercise_name son AMBOS el nombre real del ejercicio (ej: "Press Banca", "Sentadillas"). NUNCA uses "weights" ni "strength" como activity_type.
+- "sets" lleva UNA entrada por cada serie: [{"reps":N,"weight_kg":W}, ...]. Expande siempre a una entrada por serie (no agrupes).
+- Formato "RxS" o "R x S" (ej: "10x4") = R repeticiones por S series → S entradas iguales de R reps. Pero "RxWkg" (ej: "8x60kg", donde el segundo número lleva "kg") = R reps a W kg en UNA serie.
+- Si el usuario no especifica repeticiones, asume 10 reps por serie. Si no especifica peso, deja weight_kg en null.
+- Ejemplos:
+  - "Levanté 100kg en press banca" → activity_type="Press Banca", category="strength", exercise_name="Press Banca", sets=[{"reps":1,"weight_kg":100}]
+  - "Hice 4 series de sentadillas con 80kg" → activity_type="Sentadillas", category="strength", exercise_name="Sentadillas", sets=[{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80}]
+  - "10x4 con 50kg press banca" = 10 reps × 4 series a 50kg → activity_type="Press Banca", category="strength", exercise_name="Press Banca", sets=[{"reps":10,"weight_kg":50},{"reps":10,"weight_kg":50},{"reps":10,"weight_kg":50},{"reps":10,"weight_kg":50}]
+  - "press banca 10 reps 40kg, 10 reps 50kg, 8x60kg" → activity_type="Press Banca", category="strength", exercise_name="Press Banca", sets=[{"reps":10,"weight_kg":40},{"reps":10,"weight_kg":50},{"reps":8,"weight_kg":60}]
+  - "sentadillas 3x12 con 70kg" = 3 series de 12 reps → activity_type="Sentadillas", category="strength", exercise_name="Sentadillas", sets=[{"reps":12,"weight_kg":70},{"reps":12,"weight_kg":70},{"reps":12,"weight_kg":70}]
+- El volumen total (series × reps × peso) NO se incluye en el JSON; se calcula después a partir de "sets". Solo asegúrate de que "sets" refleje cada serie con sus reps y weight_kg.
+
 Reglas importantes:
-- "Levanté 100kg en press banca" → activity, category="strength", exercise_name="Press Banca", sets=[{"reps":1,"weight_kg":100}]
-- "Hice 4 series de sentadillas con 80kg" → activity, category="strength", exercise_name="Sentadillas", sets=[{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80},{"reps":10,"weight_kg":80}]
-- "10x4 con 50kg pressbanca" = 4 series de 10 reps → exercise_name="Press Banca", sets=[{"reps":10,"weight_kg":50},{"reps":10,"weight_kg":50},{"reps":10,"weight_kg":50},{"reps":10,"weight_kg":50}]
-- "Press banca 10 reps 40kg, 10 reps 50kg, 8x60kg" → sets=[{"reps":10,"weight_kg":40},{"reps":10,"weight_kg":50},{"reps":8,"weight_kg":60}]
-- Para strength: activity_type siempre "weights", exercise_name = nombre real del ejercicio
 - "Corrí 5km" → activity, category="sport"
 - "Leí 30 min" → activity, category="habit"
 - "Medité 10 minutos" → activity, category="habit"

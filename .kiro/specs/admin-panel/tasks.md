@@ -36,50 +36,50 @@ Each task builds on the previous ones and ends by wiring the new code into the r
 - [x] 2. Checkpoint - backend endpoints wired
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 3. Backend property-based tests (Hypothesis) for the aggregation and privacy logic
+- [x] 3. Backend property-based tests (Hypothesis) for the aggregation and privacy logic
   - Tests live in `tests/` per `pytest.ini`. Configure each property test with `@settings(max_examples=100)` (or more). If DB seeding cost is prohibitive, mock the session layer so the pure aggregation/merge logic still runs 100+ examples. Tag each test with a comment `# Feature: admin-panel, Property N: <title>`. Generators produce users with random `email`, random `telegram_chat_id` present/absent, and `created_at`; activities with `timestamp` values spread around the 7-day and 30-day cutoffs; and random per-user goal/reminder/challenge rows.
-  - [ ]* 3.1 Write property test for overview totals
+  - [x]* 3.1 Write property test for overview totals
     - **Property 1: Overview totals equal row counts**
     - **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5, 2.6**
 
-  - [ ]* 3.2 Write property test for active-user window counts
+  - [x]* 3.2 Write property test for active-user window counts
     - **Property 2: Active-user window counts are correct**
     - **Validates: Requirements 2.7, 2.8**
 
-  - [ ]* 3.3 Write property test for the user-list bijection
+  - [x]* 3.3 Write property test for the user-list bijection
     - **Property 3: The user list is a bijection over users**
     - **Validates: Requirements 3.1, 3.9**
 
-  - [ ]* 3.4 Write property test for per-user summary field passthrough/derivation
+  - [x]* 3.4 Write property test for per-user summary field passthrough/derivation
     - **Property 4: Per-user summary fields match their source**
     - **Validates: Requirements 3.2, 3.3, 3.4**
 
-  - [ ]* 3.5 Write property test for per-user entity counts (incl. zero default)
+  - [x]* 3.5 Write property test for per-user entity counts (incl. zero default)
     - **Property 5: Per-user entity counts equal that user's rows**
     - **Validates: Requirements 3.5, 3.6, 3.7, 3.8**
 
-  - [ ]* 3.6 Write property test for detail/list summary consistency
+  - [x]* 3.6 Write property test for detail/list summary consistency
     - **Property 6: Detail summary is consistent with the list summary**
     - **Validates: Requirements 4.1**
 
-  - [ ]* 3.7 Write property test for detail windowed activity counts
+  - [x]* 3.7 Write property test for detail windowed activity counts
     - **Property 7: Detail windowed activity counts are correct**
     - **Validates: Requirements 4.2, 4.3**
 
-  - [ ]* 3.8 Write property test for last-activity max/null
+  - [x]* 3.8 Write property test for last-activity max/null
     - **Property 8: Last activity timestamp is the max, or null when none**
     - **Validates: Requirements 4.4, 4.5**
 
-  - [ ]* 3.9 Write property test asserting no secret fields in any admin response
+  - [x]* 3.9 Write property test asserting no secret fields in any admin response
     - **Property 9: No secret fields appear in any admin response** (assert no `password_hash`, token, or raw `telegram_chat_id` key at any level of the serialized JSON for `overview`, `users`, `users/{id}`)
     - **Validates: Requirements 5.1, 5.2, 5.3**
 
-- [ ] 4. Backend example / integration tests (pytest)
-  - [ ]* 4.1 Write the auth matrix integration tests across all three endpoints
+- [x] 4. Backend example / integration tests (pytest)
+  - [x]* 4.1 Write the auth matrix integration tests across all three endpoints
     - Parameterize over `/api/admin/overview`, `/api/admin/users`, `/api/admin/users/{id}`: admin JWT -> `200`, non-admin JWT -> `403`, no token and garbage token -> `401`.
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-  - [ ]* 4.2 Write the single-user, 404, and null-last-activity example tests
+  - [x]* 4.2 Write the single-user, 404, and null-last-activity example tests
     - Single-user scenario: seed only the admin, assert `/users` returns exactly one summary with correct counts (Req 3.9).
     - 404: request `/users/{id}` for a non-existent id, assert `404` (Req 4.6).
     - Null last activity: seed a user with no activities, assert `last_activity_at is None` (Req 4.5).
@@ -107,7 +107,7 @@ Each task builds on the previous ones and ends by wiring the new code into the r
     - User list: a table/list of rows showing email, Telegram linked state (✓ Conectado / No conectado, matching `SettingsPage`), formatted registration date, and the four counts (Req 7.2).
     - _Requirements: 6.4, 7.1, 7.2, 7.3, 7.4_
 
-  - [ ]* 7.3 Add optional per-user detail drill-down UI to `AdminPage`
+  - [x]* 7.3 Add optional per-user detail drill-down UI to `AdminPage`
     - Optional nice-to-have: on selecting a user row, call `adminApi.userDetail(id)` and render `activities_7d`, `activities_30d`, and `last_activity_at` (showing a placeholder when `null`).
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 

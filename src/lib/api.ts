@@ -71,12 +71,20 @@ export const authApi = {
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
+export interface ActivitySet {
+  reps: number | null
+  weight_kg: number | null
+}
+
 export interface Activity {
   id: number
   activity_type: string
+  exercise_name?: string | null
   duration_minutes: number | null
   distance_km: number | null
   calories: number
+  sets?: ActivitySet[]
+  total_volume?: number
   timestamp: string
 }
 
